@@ -1,3 +1,174 @@
-   <!DOCTYPE html>
-   <html><head><title>Jakub Adam</title></head>
-   <body><h1>Hello, it works!</h1></body></html>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Jakub Adam</title>
+<meta name="description" content="Jakub Adam. Social links and contact information.">
+<meta name="color-scheme" content="dark">
+<meta name="theme-color" content="#060914">
+<link rel="canonical" href="https://jakubadam.com/">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Jakub Adam">
+<meta property="og:description" content="Social links and contact information.">
+<meta property="og:url" content="https://jakubadam.com/">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%232f46ff'/%3E%3Ctext x='32' y='46' font-size='42' text-anchor='middle' fill='white' font-family='Georgia,serif'%3EJ%3C/text%3E%3C/svg%3E">
+<style>
+  :root {
+    --bg: #060914;
+    --ink: #f4f6ff;
+    --muted: #98a2c8;
+    --glass: rgba(255,255,255,.055);
+    --glass-hover: rgba(255,255,255,.09);
+    --edge: rgba(255,255,255,.12);
+    --edge-hover: rgba(255,255,255,.26);
+    --cyan: #19d3ff;
+    --serif: ui-serif, "New York", "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+    --sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    color-scheme: dark;
+  }
+  *, *::before, *::after { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0;
+    min-height: 100vh;
+    min-height: 100svh;
+    display: grid;
+    place-items: center;
+    padding: max(32px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) max(32px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left));
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--sans);
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+  }
+  ::selection { background: var(--cyan); color: #001018; }
+
+  /* Background: the same blue, cyan and pink, as a static wash */
+  body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    background:
+      radial-gradient(circle 55vmax at 0% 0%, rgba(47,70,255,.4), transparent),
+      radial-gradient(circle 55vmax at 100% 100%, rgba(25,211,255,.22), transparent),
+      radial-gradient(circle 38vmax at 70% 40%, rgba(255,61,154,.13), transparent);
+  }
+
+  /* Card */
+  .card { width: min(100%, 460px); padding: 40px 20px 24px; text-align: center; }
+  @media (min-width: 560px) {
+    .card {
+      padding: 48px 32px 28px;
+      background: var(--glass);
+      border: 1px solid var(--edge);
+      border-radius: 28px;
+      -webkit-backdrop-filter: blur(22px) saturate(140%);
+      backdrop-filter: blur(22px) saturate(140%);
+      box-shadow: 0 30px 80px -20px rgba(0,0,0,.6);
+    }
+  }
+
+  /* Profile picture */
+  .avatar { width: 120px; height: 120px; margin: 0 auto 22px; padding: 3px; border-radius: 50%; background: conic-gradient(from 200deg, #2f46ff, #19d3ff, #ff3d9a, #2f46ff); }
+  .photo { position: relative; width: 100%; height: 100%; border-radius: 50%; border: 4px solid var(--bg); background: #10142b; overflow: hidden; display: grid; place-items: center; }
+  .photo span { font-family: var(--serif); font-size: 2.4rem; letter-spacing: -.02em; }
+  .photo img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+
+  /* Name */
+  h1 { margin: 0; font-family: var(--serif); font-weight: 500; font-size: clamp(2.2rem, 9vw, 2.9rem); line-height: 1.1; letter-spacing: -.03em; }
+  .tag { margin: 8px 0 30px; color: var(--muted); }
+
+  /* Links */
+  .links { display: grid; gap: 12px; }
+  .btn {
+    display: flex; align-items: center; gap: 14px;
+    padding: 12px 14px; text-align: left;
+    color: var(--ink); text-decoration: none;
+    background: var(--glass); border: 1px solid var(--edge); border-radius: 16px;
+    transition: background-color .2s, border-color .2s;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .btn:hover, .btn:focus-visible { background: var(--glass-hover); border-color: var(--edge-hover); }
+  .btn:active { background: rgba(255,255,255,.12); }
+  .btn:focus-visible { outline: 2px solid var(--cyan); outline-offset: 3px; }
+
+  .ico { flex: none; width: 44px; height: 44px; border-radius: 12px; display: grid; place-items: center; color: #fff; }
+  .ico svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+  .ig .ico { background: linear-gradient(45deg, #f9a825, #ee2a7b 55%, #6228d7); }
+  .mail .ico { background: #2f46ff; }
+  /* Icon colors for the placeholder links in the HTML (used once you enable them) */
+  .li .ico { background: #0a66c2; }
+  .gh .ico { background: #30363d; }
+  .yt .ico { background: #e62117; }
+
+  .txt { flex: 1; min-width: 0; }
+  .txt b { display: block; font-weight: 600; font-size: 1.05rem; letter-spacing: -.01em; }
+  .txt small { display: block; color: var(--muted); font-size: .85rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .go { flex: none; width: 34px; height: 34px; display: grid; place-items: center; color: var(--muted); transition: color .2s; }
+  .go svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+  .btn:hover .go, .btn:focus-visible .go { color: var(--ink); }
+
+  /* Footer */
+  .foot { margin: 28px 0 0; padding-top: 18px; border-top: 1px solid var(--edge); font-size: .8rem; color: var(--muted); letter-spacing: .02em; text-wrap: balance; }
+</style>
+</head>
+<body>
+
+<main class="card">
+  <!-- PROFILE PICTURE: save your photo as profile.jpg next to this file (square, 400px+). Until then, initials show. -->
+  <div class="avatar">
+    <div class="photo">
+      <span aria-hidden="true">JA</span>
+      <img src="profile.jpg" alt="Jakub Adam" onerror="this.remove()">
+    </div>
+  </div>
+
+  <h1>Jakub Adam</h1>
+  <p class="tag">Links and contact</p>
+
+  <nav class="links" aria-label="Links">
+    <!-- EDIT: replace the Instagram URL below with your own profile link. -->
+    <a class="btn ig" href="https://www.instagram.com/your-username" target="_blank" rel="noopener noreferrer">
+      <span class="ico"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><path d="M17.5 6.5h.01"/></svg></span>
+      <span class="txt"><b>Instagram</b><small>Photos and stories</small></span>
+      <span class="go"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 7h10v10"/><path d="M7 17 17 7"/></svg></span>
+    </a>
+
+    <!--
+      UNUSED PLACEHOLDER LINKS: to turn one on, delete the comment markers that open
+      and close this block, keep only the links you want, and replace each URL with your own.
+
+    <a class="btn li" href="https://www.linkedin.com/in/your-username" target="_blank" rel="noopener noreferrer">
+      <span class="ico"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-2-2 2 2 0 0 0-2 2v7h-4v-7a6 6 0 0 1 6-6z"/><rect x="2" y="9" width="4" height="12"/><circle cx="4" cy="4" r="2"/></svg></span>
+      <span class="txt"><b>LinkedIn</b><small>Professional profile</small></span>
+      <span class="go"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 7h10v10"/><path d="M7 17 17 7"/></svg></span>
+    </a>
+
+    <a class="btn gh" href="https://github.com/your-username" target="_blank" rel="noopener noreferrer">
+      <span class="ico"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 22v-4a4.8 4.8 0 0 0-1-3.5c3 0 6-2 6-5.5.08-1.25-.27-2.48-1-3.5.28-1.15.28-2.35 0-3.5 0 0-1 0-3 1.5-2.64-.5-5.36-.5-8 0C6 2 5 2 5 2c-.3 1.15-.3 2.35 0 3.5A5.4 5.4 0 0 0 4 9c0 3.5 3 5.5 6 5.5-.39.49-.68 1.05-.85 1.65-.17.6-.22 1.23-.15 1.85v4"/><path d="M9 18c-4.51 2-5-2-7-2"/></svg></span>
+      <span class="txt"><b>GitHub</b><small>Code and projects</small></span>
+      <span class="go"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 7h10v10"/><path d="M7 17 17 7"/></svg></span>
+    </a>
+
+    <a class="btn yt" href="https://www.youtube.com/@your-channel" target="_blank" rel="noopener noreferrer">
+      <span class="ico"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2.5 17a24.1 24.1 0 0 1 0-10 2 2 0 0 1 1.4-1.4 49.6 49.6 0 0 1 16.2 0A2 2 0 0 1 21.5 7a24.1 24.1 0 0 1 0 10 2 2 0 0 1-1.4 1.4 49.6 49.6 0 0 1-16.2 0A2 2 0 0 1 2.5 17"/><path d="m10 15 5-3-5-3z"/></svg></span>
+      <span class="txt"><b>YouTube</b><small>Videos</small></span>
+      <span class="go"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 7h10v10"/><path d="M7 17 17 7"/></svg></span>
+    </a>
+    -->
+
+    <a class="btn mail" href="mailto:me@jakubadam.com">
+      <span class="ico"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg></span>
+      <span class="txt"><b>Email</b><small>me@jakubadam.com</small></span>
+      <span class="go"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 7h10v10"/><path d="M7 17 17 7"/></svg></span>
+    </a>
+  </nav>
+
+  <p class="foot">Copyright &copy; 2026 jakubadam.com. All rights reserved.</p>
+</main>
+
+</body>
+</html>
