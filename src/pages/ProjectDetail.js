@@ -3,7 +3,6 @@ import { Pic } from '../components/Pic.js';
 import { projects } from '../data/site.js';
 import { link } from '../lib/router.js';
 
-/* Sub screen: #/portfolio/<slug> */
 export function ProjectDetail({ id }) {
   const index = projects.findIndex(p => p.slug === id);
   const p = projects[index];

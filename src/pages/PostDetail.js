@@ -3,7 +3,6 @@ import { Pic } from '../components/Pic.js';
 import { posts } from '../data/site.js';
 import { link } from '../lib/router.js';
 
-/* Sub screen: #/news/<slug> */
 export function PostDetail({ id }) {
   const index = posts.findIndex(p => p.slug === id);
   const p = posts[index];
