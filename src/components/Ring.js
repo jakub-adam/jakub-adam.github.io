@@ -1,6 +1,6 @@
 import { html } from '../lib/html.js';
 
-const C = 213.6; 
+const C = 213.6; // circle length for r=34 (2 * pi * 34)
 
 export const Ring = ({ name, value, color }) => html`
   <div class="ring">

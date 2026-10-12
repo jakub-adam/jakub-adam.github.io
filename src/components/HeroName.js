@@ -1,17 +1,20 @@
 import { html, useEffect, useRef } from '../lib/html.js';
 import { reduceMotion } from '../lib/motion.js';
 
-
-const LIFT = 0.14;   
-const REACH = 1.6;  
-const EASE = 0.14;   
+/* The big name on the home page.
+   Letters rise in on load. Near the cursor they lift gently, and every frame eases
+   toward its target, so the movement is smooth and never jumps.
+   Tweak LIFT (how high) and REACH (how far from the cursor it works). */
+const LIFT = 0.14;   // fraction of the font size
+const REACH = 1.6;   // in font sizes
+const EASE = 0.14;   // 0.05 = slow and floaty, 0.3 = snappy
 
 export function HeroName({ lines }) {
   const root = useRef(null);
 
   useEffect(() => {
     if (reduceMotion) return;
-    const zone = root.current.parentElement;      
+    const zone = root.current.parentElement;           // the hero section listens for the pointer
     const letters = [...root.current.querySelectorAll('.ch')];
     const y = letters.map(() => 0);
     let px = 0, py = 0, inside = false, raf = 0;
@@ -39,7 +42,7 @@ export function HeroName({ lines }) {
     return () => { cancelAnimationFrame(raf); zone.removeEventListener('pointermove', move); zone.removeEventListener('pointerleave', leave); };
   }, []);
 
-  let n = 0; 
+  let n = 0; // running letter number, used to stagger the entrance
   return html`
     <h1 class="name" ref=${root} aria-label=${lines.join(' ')}>
       ${lines.map(word => html`

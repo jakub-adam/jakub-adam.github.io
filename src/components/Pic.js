@@ -1,5 +1,6 @@
 import { html } from '../lib/html.js';
 
+/* Six generated black-and-white patterns, used when a project or post has no image */
 const ART = [
   '<g fill="none" stroke="currentColor" stroke-width="3"><circle cx="60" cy="45" r="12"/><circle cx="60" cy="45" r="25"/><circle cx="60" cy="45" r="38"/></g>',
   '<path d="M-10 100L60-10M10 100L80-10M30 100L100-10M50 100L120-10M70 100L140-10M90 100L160-10" stroke="currentColor" stroke-width="5"/>',
@@ -9,6 +10,7 @@ const ART = [
   '<rect x="18" y="14" width="52" height="52" fill="currentColor"/><rect x="48" y="30" width="52" height="52" fill="none" stroke="currentColor" stroke-width="3.5"/>',
 ];
 
+/* index picks the pattern; img (optional) is a path like 'images/shot.jpg' */
 export const Pic = ({ index = 0, img }) => html`
   <div class="im">${img
     ? html`<img src=${img} alt="" loading="lazy" />`
