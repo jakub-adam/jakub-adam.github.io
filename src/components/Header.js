@@ -13,9 +13,9 @@ export const Header = ({ menuOpen, onMenu, onSearch, onAssistant }) => html`
   <header>
     <a class="logo" href=${link('home')}>${site.name}</a>
     <div class="tools">
-      <button class="kbtn" onClick=${onSearch} aria-label="Search the site"><${Icon} name="search" /><span>Search</span><kbd>${shortcut}</kbd></button>
+      <button class="kbtn" data-search-anchor onClick=${onSearch} aria-label="Search the site"><${Icon} name="search" /><span>Search</span><kbd>${shortcut}</kbd></button>
       <button class="kbtn tbtn" onClick=${toggleTheme} aria-label="Switch between dark and light theme"><span class="i-sun"><${Icon} name="sun" /></span><span class="i-moon"><${Icon} name="moon" /></span></button>
-      ${!onAssistant && html`<a class="kbtn aibtn" href=${link('lab', 'assistant')} aria-label="Ask Jakub, the AI assistant"><${Icon} name="spark" /></a>`}
+      ${!onAssistant && html`<a class="kbtn aibtn" href=${link('lab', 'assistant')} aria-label="Ask Jakub, the AI assistant"><${Icon} name="chat" /></a>`}
       <button class=${'burger' + (menuOpen ? ' open' : '')} onClick=${onMenu} aria-label=${menuOpen ? 'Close menu' : 'Open menu'} aria-expanded=${menuOpen}><i></i><i></i><i></i></button>
     </div>
   </header>`;

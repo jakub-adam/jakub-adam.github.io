@@ -16,7 +16,7 @@ export const About = () => html`<${Fragment}>
   <${Label} text="Right now" sample=${samples.now} />
   <p class="rv intro" style=${{ margin: 0 }}>${about.now}</p>
 
-  <${Label} text="Personal informations" />
+  <${Label} text="Details" />
   <div class="info rv">${about.info.map(([k, v]) => html`<p key=${k}><b>${k}:</b> <span>${v}</span></p>`)}</div>
 
   <div class="two">

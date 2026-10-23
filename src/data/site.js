@@ -13,6 +13,8 @@ export const site = {
   name: 'Jakub Adam',
   domain: 'jakubadam.com',
   lead: 'Projects, links and ways to reach me, all in one place.',
+  hello: "Hey, I'm Jakub.",                       // home page, next to your photo
+  bio: 'I build websites and small experiments for the browser. Have a look around, try something in the Lab, or just say hi.',
   photo: 'images/profile.jpg', // put your photo in the images folder with this name
   phone: { text: '+421 907 669 331', href: 'tel:+421907669331' },
 };
@@ -55,8 +57,8 @@ export const about = {
     ['First Name', 'Jakub'], ['Last Name', 'Adam'], ['Website', site.domain],
     ['GitHub', 'jakub-adam'], ['Instagram', '@jakubadaam'], ['Phone', site.phone.text],
   ],
-  skills: [['HTML & CSS', 90, '--r'], ['JavaScript', 75, '--b'], ['Figma', 65, '--g']],
-  languages: [['Language 1', 95, '--r'], ['Language 2', 85, '--b'], ['Language 3', 60, '--g']],
+  skills: [['HTML & CSS', 90, '--accent'], ['JavaScript', 75, '--accent-2'], ['Figma', 65, '--accent-3']],
+  languages: [['Language 1', 95, '--accent'], ['Language 2', 85, '--accent-2'], ['Language 3', 60, '--accent-3']],
   services: [['code', 'Web Development'], ['phone', 'App Development'], ['zap', 'Fast Learning'],
              ['pen', 'UI Design'], ['box', 'Side Projects'], ['mail', 'Communication']].map(([icon, title]) => ({ icon, title, text: sample })),
   education: [{ date: '2022 - 2026', title: 'School name', text: sample }, { date: '2018 - 2022', title: 'Previous school', text: sample }],

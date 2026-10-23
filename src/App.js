@@ -60,7 +60,7 @@ export function App() {
 
   return html`<${Fragment}>
     <${Header} onAssistant=${onAssistant} menuOpen=${menuOpen} onMenu=${() => setMenuOpen(o => !o)} onSearch=${() => { setMenuOpen(false); setPalOpen(true); }} />
-    <${Panel} />
+    <${Panel} page=${current} />
     <div class="wrap">
       <main class="page" key=${current + (details[current] ? id : '')}><${View} id=${id} /></main>
     </div>

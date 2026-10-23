@@ -22,7 +22,7 @@ src/
   App.js              page frame and routing: add new pages here
   data/site.js        ALL text, links, projects and posts: edit content here
   lib/                html.js (JSX-like helper), router.js, motion.js
-  components/         small reusable pieces (Header, Menu, Footer, HeroName, ProjectCard...)
+  components/         small reusable pieces (Header, Menu, Footer, HeroName, Portrait, NetworkCanvas = the day/night sky...)
   pages/              one file per screen (Home, Portfolio, ProjectDetail, About, News, PostDetail, Contact)
 ```
 

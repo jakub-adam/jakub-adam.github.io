@@ -12,11 +12,11 @@ export function Portfolio() {
   const shown = projects.filter(p => filter === 'All' || p.category === filter);
   return html`<div class="pfolio">
     <h1 class="title">Portfolio</h1>
-    <p class="intro">A selection of things I have made.</p>
-    <div class="acts"><a class="btn" href=${link('contact')}>If you are interested, get in touch</a></div>
+    <p class="intro">Things I have made, some finished, some not quite.</p>
+    <div class="acts"><a class="btn" href=${link('contact')}>Like something here? Get in touch</a></div>
     <div class="tabs" role="group" aria-label="Filter projects" style=${{ '--n': categories.length }}>${categories.map(c => html`<button key=${c} className=${c === filter ? 'on' : ''} aria-pressed=${c === filter} onClick=${() => setFilter(c)}>${c}</button>`)}</div>
     <div class="pg" data-feat=${filter === 'All'}>${projects.map((p, i) => shown.includes(p) && html`<${ProjectCard} key=${p.slug} project=${p} index=${i} />`)}</div>
-    <h2 class="lab">Live from GitHub</h2>
+    <h2 class="lab">On GitHub</h2>
     <${GithubRepos} />
   </div>`;
 }

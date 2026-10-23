@@ -170,7 +170,7 @@ const topics = () => [
   { id: 'howto', keys: 'search shortcut keyboard navigate navigation menu theme', phrases: ['how do i use', 'how to use', 'dark mode', 'light mode', 'use this site', 'around the site'], sample: false, next: ['lab', 'site'], actions: () => [],
     openers: [
       `Press Ctrl K (or ⌘K) anywhere to open search, then type to jump to any page, project or tool.`, `Use the menu or the bottom tabs to move around, Ctrl K to search, and the switch in the footer for dark or light mode.`,
-      `Tip: the sparkle button opens me, and Ctrl K opens search. The Lab has a terminal and a sorting visualizer.`, `Navigation is simple: the menu for pages, Ctrl K for search, and "/" also opens search.`,
+      `Tip: the round chat button opens me, and Ctrl K opens search. The Lab has a terminal and a sorting visualizer.`, `Navigation is simple: the menu for pages, Ctrl K for search, and "/" also opens search.`,
       `Try the Lab for interactive things, or press Ctrl K and start typing what you're looking for.`, `On a phone use the bottom tabs; on a computer use the menu button. Search works everywhere with the magnifier.`,
     ] },
   { id: 'private', keys: 'age old born birthday birth live living city country address salary price income hobby hobbie interest favorite favourite food music family married relationship girlfriend boyfriend height weight religion politic', phrases: ['where is he from', 'where does he live', 'where is he based', 'how old', 'what age', 'when was he born', 'his email', 'his address', 'how much does he', 'is he married', 'does he have a'], sample: false, next: ['contact', 'expertise', 'projects'], actions: () => [{ label: 'Call', href: site.phone.href }],

@@ -17,6 +17,18 @@ export function CommandPalette({ open, close }) {
     ? all.map(item => ({ item, m: fuzzy(q, item.label) })).filter(r => r.m).sort((a, b) => b.m.score - a.m.score).slice(0, 9)
     : all.map(item => ({ item, m: null }));
 
+  /* On a computer the palette rolls down from the Search button, so it is placed right under it.
+     On a phone the CSS turns it into a bottom sheet and ignores this position. */
+  const [anchor, setAnchor] = useState({});
+  useEffect(() => {
+    if (!open) return;
+    const button = document.querySelector('[data-search-anchor]');
+    if (button) {
+      const r = button.getBoundingClientRect();
+      setAnchor({ '--pal-top': r.bottom + 8 + 'px', '--pal-right': innerWidth - r.right + 'px' });
+    }
+  }, [open]);
+
   useEffect(() => {
     if (!open) return;
     setQuery(''); setActive(0);
@@ -40,7 +52,7 @@ export function CommandPalette({ open, close }) {
 
   let group = '';
   return html`
-    <div class=${'pal-wrap' + (open ? ' open' : '')} onMouseDown=${e => e.target === e.currentTarget && close()} aria-hidden=${!open}>
+    <div class=${'pal-wrap' + (open ? ' open' : '')} style=${anchor} onMouseDown=${e => e.target === e.currentTarget && close()} aria-hidden=${!open}>
       <div class="pal" role="dialog" aria-label="Command palette">
         <input ref=${input} class="pal-in" value=${query} placeholder="Search pages, projects, tools, links..." tabIndex=${open ? 0 : -1}
           onChange=${e => { setQuery(e.target.value); setActive(0); }} onKeyDown=${onKey} spellcheck="false" autocomplete="off" />

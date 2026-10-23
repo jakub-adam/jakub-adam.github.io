@@ -10,7 +10,7 @@ let counter = 1;
 const mouse = () => matchMedia('(hover: hover) and (pointer: fine)').matches; // do not pop the phone keyboard open by itself
 
 /* Reveals the answer word by word, like a streamed reply.
-   The sparkle icon appears once, in the chat header, so messages carry no avatar. */
+   The chat icon appears once, in the chat header, so messages carry no avatar. */
 function BotMessage({ m, onTick, onDone }) {
   const parts = m.text.split(/(\s+)/);
   const [shown, setShown] = useState(m.animate ? 0 : parts.length);
@@ -66,7 +66,7 @@ export function Assistant() {
   return html`<${Fragment}>
     <div class="chat">
       <div class="chat-head">
-        <span class="av"><${Icon} name="spark" /></span>
+        <span class="av"><${Icon} name="chat" /></span>
         <div><b>${assistant.name}</b><small>Answers come only from the details on this site. It is not a general AI.</small></div>
         <button class="btn sm ghost" onClick=${clear}>Clear</button>
       </div>

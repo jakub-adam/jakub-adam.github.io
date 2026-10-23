@@ -4,7 +4,7 @@ import { site, social } from '../data/site.js';
 
 export const Contact = () => html`<${Fragment}>
   <h1 class="title">Contact</h1>
-  <p class="intro">Call me or find me on these platforms.</p>
+  <p class="intro">Calling is quickest. Otherwise message me on any of these.</p>
   <div class="cl">
     <a href=${site.phone.href}><${Icon} name="phone" />${site.phone.text}<span>Call</span></a>
     ${social.filter(s => s.href).map(s => html`

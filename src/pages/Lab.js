@@ -22,7 +22,7 @@ export function Lab({ id }) {
       <h1 class="title">Lab</h1>
       <${Segmented} label="Lab tools" index=${index} items=${labTools.map(([tid, label]) => ({ id: tid, label: SHORT[tid] || label, href: link('lab', tid) }))} />
     </div>
-    <p class="intro lab-intro">Small tools written in plain JavaScript, running right here in your browser.</p>
+    <p class="intro lab-intro">A few small things I built for fun. They all run in your browser.</p>
     <p class="note">${desc}</p>
     <div class="tool"><${Tool} key=${toolId} /></div>
   </div>`;
