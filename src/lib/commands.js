@@ -10,7 +10,7 @@ const bar = v => '#'.repeat(Math.round(v / 5)).padEnd(20, '.');
 const tree = () => ({
   'about.txt': about.intro,
   'skills.txt': about.skills.map(([n, v]) => `${n.padEnd(12)} [${bar(v)}] ${v}%`).join('\n'),
-  'contact.txt': [`phone      ${site.phone.text}`, ...social.filter(s => s.href).map(s => `${s.name.toLowerCase().padEnd(10)} ${s.href}`)].join('\n'),
+  'contact.txt': [`phone      ${site.phone.text}`, `email      ${site.email.text}`, ...social.filter(s => s.href || s.handle).map(s => `${s.name.toLowerCase().padEnd(10)} ${s.href || s.handle}`)].join('\n'),
   projects: Object.fromEntries(projects.map(p => [p.slug + '.txt', `${p.title} (${p.category})\n${p.summary}`])),
 });
 const lookup = path => path.replace(/^\.?\/?/, '').split('/').filter(Boolean)
@@ -18,7 +18,7 @@ const lookup = path => path.replace(/^\.?\/?/, '').split('/').filter(Boolean)
 
 const HELP = {
   help: 'list all commands', ask: 'ask about Jakub: ask where did he study', about: 'who I am', skills: 'my skills as bars', projects: 'list my projects',
-  contact: 'phone and social links', ls: 'list files: ls [folder]', cat: 'read a file: cat about.txt',
+  contact: 'phone, email and social links', ls: 'list files: ls [folder]', cat: 'read a file: cat about.txt',
   open: 'go to a page: open portfolio', theme: 'theme dark | light', neofetch: 'system info',
   ping: 'ping a host (simulated)', whoami: 'who are you', date: 'current date and time',
   echo: 'print text', history: 'commands you typed', clear: 'clear the screen (Ctrl+L)',

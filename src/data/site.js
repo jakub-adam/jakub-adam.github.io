@@ -3,7 +3,7 @@
    The "Ask Jakub" assistant answers only from this file, so the more
    you fill in, the better its answers get.
 
-   Real details (name, phone, Instagram, Facebook, GitHub) are filled in.
+   Real details (name, phone, email, socials, languages, education) are filled in.
    Everything else is SAMPLE content and shows a "Sample" tag on the site.
    When you replace a sample with your own text, remove its "sample: true"
    (or set its flag in "samples" below to false) and the tag disappears.
@@ -17,13 +17,14 @@ export const site = {
   bio: 'I build websites and small experiments for the browser. Have a look around, try something in the Lab, or just say hi.',
   photo: 'images/profile.jpg', // put your photo in the images folder with this name
   phone: { text: '+421 907 669 331', href: 'tel:+421907669331' },
+  email: { text: 'me@jakubadam.com', href: 'mailto:me@jakubadam.com' },
 };
 
-/* Social links. An entry with an empty href is hidden, so paste your Discord link
-   into the empty one when you have it. */
+/* Social links. An entry with a handle but no href is shown as plain text on the
+   Contact page (no link). An entry with neither is hidden. */
 export const social = [
   { name: 'Instagram', icon: 'ig', handle: '@jakubadaam', href: 'https://instagram.com/jakubadaam' },
-  { name: 'Discord',   icon: 'dc', handle: '',            href: '' },
+  { name: 'Discord',   icon: 'dc', handle: 'jakubadaam',  href: 'https://discord.com/users/498216866070659082' },
   { name: 'Facebook',  icon: 'fb', handle: 'kuboadaam',   href: 'https://facebook.com/kuboadaam' },
   { name: 'GitHub',    icon: 'gh', handle: 'jakub-adam',  href: 'https://github.com/jakub-adam' },
 ];
@@ -46,7 +47,7 @@ export const assistant = {
 };
 
 /* Sections that still contain sample content (set to false when you fill them in) */
-export const samples = { skills: true, languages: true, services: true, education: true, experience: true, now: true };
+export const samples = { skills: true, languages: false, services: true, education: false, experience: true, now: true };
 
 const sample = 'Sample text. Replace this with a short description in your own words.';
 
@@ -55,13 +56,17 @@ export const about = {
   now: 'Sample text: describe what you are working on right now.',
   info: [
     ['First Name', 'Jakub'], ['Last Name', 'Adam'], ['Website', site.domain],
-    ['GitHub', 'jakub-adam'], ['Instagram', '@jakubadaam'], ['Phone', site.phone.text],
+    ['GitHub', 'jakub-adam'], ['Instagram', '@jakubadaam'], ['Discord', 'jakubadaam'],
+    ['Phone', site.phone.text], ['Email', site.email.text],
   ],
   skills: [['HTML & CSS', 90, '--accent'], ['JavaScript', 75, '--accent-2'], ['Figma', 65, '--accent-3']],
-  languages: [['Language 1', 95, '--accent'], ['Language 2', 85, '--accent-2'], ['Language 3', 60, '--accent-3']],
+  languages: [['Slovak', 100, '--accent'], ['English', 90, '--accent-2'], ['Russian', 25, '--accent-3']],
   services: [['code', 'Web Development'], ['phone', 'App Development'], ['zap', 'Fast Learning'],
              ['pen', 'UI Design'], ['box', 'Side Projects'], ['mail', 'Communication']].map(([icon, title]) => ({ icon, title, text: sample })),
-  education: [{ date: '2022 - 2026', title: 'School name', text: sample }, { date: '2018 - 2022', title: 'Previous school', text: sample }],
+  education: [
+    { date: '2023 - 2027', title: 'Secondary Technical School of Electrical Engineering, Prešov', text: 'Information and Network Technologies.' },
+    { date: '2014 - 2023', title: 'Primary School Sídlisko II, Vranov nad Topľou', text: 'Primary school.' },
+  ],
   experience: [{ date: '2025 - Now', title: 'Sample role', text: sample }, { date: '2024', title: 'Sample project', text: sample }],
 };
 

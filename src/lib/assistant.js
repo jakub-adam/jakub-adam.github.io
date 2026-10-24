@@ -59,9 +59,9 @@ const vars = () => {
   const rest = about.skills.filter(s => s !== top).map(s => s[0]);
   const lv = ([n, v]) => `${n} (${v}%)`;
   const edu = about.education.map(e => `${e.title} (${e.date})`), exp = about.experience.map(e => `${e.title} (${e.date})`);
-  const live = social.filter(s => s.href), featured = projects.find(p => !p.sample) || projects[0];
+  const live = social.filter(s => s.handle), featured = projects.find(p => !p.sample) || projects[0];
   return {
-    name: 'Jakub', full: site.name, domain: site.domain, phone: site.phone.text, intro: about.intro, now: about.now,
+    name: 'Jakub', full: site.name, domain: site.domain, phone: site.phone.text, email: site.email.text, intro: about.intro, now: about.now,
     skills: and(about.skills.map(lv)), skillLines: bullets(about.skills.map(lv)), skillNames: and(about.skills.map(s => s[0])),
     topSkill: top[0], topLevel: top[1], otherSkills: rest.length ? and(rest) : 'a few other things',
     langs: and(about.languages.map(lv)), langLines: bullets(about.languages.map(lv)),
@@ -92,12 +92,12 @@ const topics = () => [
       `Short version: {full}. {intro}`, `That's {full}. {intro} Ask about his skills, studies or projects if you want more.`, `{full} runs {domain}. {intro}`,
       `Meet {name}. {intro}`, `In a sentence: {intro} The site is at {domain}.`, `{name} is the owner of this site. {intro}`,
     ] },
-  { id: 'contact', keys: 'contact phone call number telephone reach message talk social instagram facebook github discord', phrases: ['get in touch', 'how can i', 'reach him', 'contact him', 'his contact'], sample: false, next: ['collab', 'projects', 'expertise'],
-    actions: () => [{ label: 'Call', href: site.phone.href }, ...social.filter(s => s.href).map(s => ({ label: s.name, href: s.href }))],
+  { id: 'contact', keys: 'contact phone call number telephone email mail reach message talk social instagram facebook github discord', phrases: ['get in touch', 'how can i', 'reach him', 'contact him', 'his contact', 'his email'], sample: false, next: ['collab', 'projects', 'expertise'],
+    actions: () => [{ label: 'Call', href: site.phone.href }, { label: 'Email', href: site.email.href }, ...social.filter(s => s.href).map(s => ({ label: s.name, href: s.href }))],
     openers: [
-      `The quickest way to reach {name} is by phone: {phone}. You can also find him on {socials}.`, `You can call {name} on {phone}, or message him on {socials}.`,
-      `Here's how to get in touch:\n• Phone: {phone}\n{socialLines}`, `Phone {phone}, or look him up on {socials}. Both work.`,
-      `Reaching {name} is easy: call {phone} or message him on {socials}.`, `Contact options:\n• Call: {phone}\n{socialLines}`,
+      `The quickest way to reach {name} is by phone: {phone}. You can also find him on {socials}.`, `You can call {name} on {phone}, email {email}, or message him on {socials}.`,
+      `Here's how to get in touch:\n• Phone: {phone}\n• Email: {email}\n{socialLines}`, `Phone {phone}, or look him up on {socials}. Both work.`,
+      `Reaching {name} is easy: call {phone} or message him on {socials}.`, `Contact options:\n• Call: {phone}\n• Email: {email}\n{socialLines}`,
       `Want to talk? He's on {socials}, or you can ring {phone}.`, `To get in touch, use {phone} or one of his profiles: {socials}.`,
     ] },
   { id: 'collab', keys: 'hire hiring available availability freelance collaborate collaboration opportunity', phrases: ['work with him', 'hire him', 'work together', 'working together', 'for hire', 'open to work'], sample: false, next: ['contact', 'projects', 'expertise'],
@@ -173,7 +173,7 @@ const topics = () => [
       `Tip: the round chat button opens me, and Ctrl K opens search. The Lab has a terminal and a sorting visualizer.`, `Navigation is simple: the menu for pages, Ctrl K for search, and "/" also opens search.`,
       `Try the Lab for interactive things, or press Ctrl K and start typing what you're looking for.`, `On a phone use the bottom tabs; on a computer use the menu button. Search works everywhere with the magnifier.`,
     ] },
-  { id: 'private', keys: 'age old born birthday birth live living city country address salary price income hobby hobbie interest favorite favourite food music family married relationship girlfriend boyfriend height weight religion politic', phrases: ['where is he from', 'where does he live', 'where is he based', 'how old', 'what age', 'when was he born', 'his email', 'his address', 'how much does he', 'is he married', 'does he have a'], sample: false, next: ['contact', 'expertise', 'projects'], actions: () => [{ label: 'Call', href: site.phone.href }],
+  { id: 'private', keys: 'age old born birthday birth live living city country address salary price income hobby hobbie interest favorite favourite food music family married relationship girlfriend boyfriend height weight religion politic', phrases: ['where is he from', 'where does he live', 'where is he based', 'how old', 'what age', 'when was he born', 'his address', 'how much does he', 'is he married', 'does he have a'], sample: false, next: ['contact', 'expertise', 'projects'], actions: () => [{ label: 'Call', href: site.phone.href }],
     openers: [
       `That isn't something {name} has shared on this site, so I can't say.`, `I only know what's on the site, and that detail isn't there.`, `Good question, but {name} hasn't added that here. You could ask him directly on {phone}.`,
       `That's not in my notes, and I'd rather not guess.`, `I don't have that on file. {name} is easiest to reach on {socials}.`, `Sorry, that isn't published on the site. Maybe ask him on {socials}?`,
@@ -196,8 +196,8 @@ const specifics = q => {
     const key = s.name.toLowerCase();
     list.push({ id: 'platform', words: [stem(key), ...(extra[key] || [])], vars: { platform: s.name, handle: s.handle }, sample: false, next: ['contact', 'projects'],
       actions: () => (s.href ? [{ label: 'Open ' + s.name, href: s.href }] : [{ label: 'Call', href: site.phone.href }]),
-      openers: s.href
-        ? [`{name} is {handle} on {platform}.`, `On {platform} you'll find him as {handle}.`, `{platform}: {handle}. You can open it from the Contact page.`, `His {platform} handle is {handle}.`, `Find him on {platform} as {handle}.`, `Search for {handle} on {platform}.`]
+      openers: s.handle
+        ? [`{name} is {handle} on {platform}.`, `On {platform} you'll find him as {handle}.`, `{platform}: {handle}. It's also on the Contact page.`, `His {platform} handle is {handle}.`, `Find him on {platform} as {handle}.`, `Search for {handle} on {platform}.`]
         : [`{name} hasn't shared a {platform} yet. Try {socials} instead.`, `There's no {platform} listed for {name} yet. {socials} work.`, `No {platform} link on the site for now. You can reach him on {socials}.`, `{platform} isn't set up on this site yet, but {socials} are.`, `He hasn't added {platform} here. Use {socials} instead.`] });
   });
   // "does he know Python?": a skill that is not on the list
