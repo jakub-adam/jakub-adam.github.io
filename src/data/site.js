@@ -18,6 +18,10 @@ export const site = {
   photo: 'images/profile.jpg', // put your photo in the images folder with this name
   phone: { text: '+421 907 669 331', href: 'tel:+421907669331' },
   email: { text: 'me@jakubadam.com', href: 'mailto:me@jakubadam.com' },
+  /* The sky panel is drawn for this place: the night chart shows the stars above it right now,
+     the day chart shows where the sun is. Change the name and the coordinates to move it. */
+  place: { name: 'Vranov nad Topľou, SK', lat: 48.8842, lon: 21.6853 },
+  tagline: 'React · GitHub Pages · no backend',   // small line at the bottom of every page
 };
 
 /* Social links. An entry with a handle but no href is shown as plain text on the
@@ -33,11 +37,11 @@ export const social = [
    (Contact is reached with the "Get in touch" buttons and the search). */
 export const pages = [['Home', 'home'], ['About', 'about'], ['Portfolio', 'portfolio'], ['Lab', 'lab'], ['News', 'news'], ['Contact', 'contact', false]];
 
-/* Tools on the Lab page: [url id, name, short description] */
+/* Tools on the Lab page: [url id, name, short description, two-word label] */
 export const labTools = [
-  ['assistant', 'Ask Jakub', 'An assistant that answers questions about Jakub using only the details on this site. It runs in your browser and does not call any outside service.'],
-  ['terminal', 'Terminal', 'A small command line that runs entirely in your browser. Try help, neofetch, ls projects, ask where did he study, or open portfolio.'],
-  ['sorting', 'Sorting visualizer', 'Six sorting algorithms written as JavaScript generators, so each step can be shown as an animation frame.'],
+  ['assistant', 'Ask Jakub', 'An assistant that answers questions about Jakub using only the details on this site. It runs in your browser and does not call any outside service.', 'Assistant'],
+  ['terminal', 'Terminal', 'A small command line that runs entirely in your browser. Try help, neofetch, ls projects, ask where did he study, or open portfolio.', 'CLI'],
+  ['sorting', 'Sorting visualizer', 'Six sorting algorithms written as JavaScript generators, so each step can be shown as an animation frame.', '6 algorithms'],
 ];
 
 /* Text for the assistant */
@@ -67,15 +71,49 @@ export const about = {
     { date: '2023 - 2027', title: 'Secondary Technical School of Electrical Engineering, Prešov', text: 'Information and Network Technologies.' },
     { date: '2014 - 2023', title: 'Primary School Sídlisko II, Vranov nad Topľou', text: 'Primary school.' },
   ],
+  /* Awards, prizes, competitions, certificates... one short line each, for example
+     '1st place, regional programming contest (2025)'. Only the assistant uses this list.
+     While it is empty, the assistant points to your projects and studies instead. */
+  achievements: [],
   experience: [{ date: '2025 - Now', title: 'Sample role', text: sample }, { date: '2024', title: 'Sample project', text: sample }],
 };
 
-/* Portfolio. "slug" is the page address: #/portfolio/<slug>.
-   Add  img: 'images/my-shot.jpg'  to use a screenshot instead of the generated art. */
+/* Portfolio. "slug" is the page address: #/portfolio/<slug>. The first project is the "Latest project" on the home page.
+   Add  img: 'images/my-shot.jpg'  to use a screenshot instead of the generated art.
+   Optional extras, all shown on the project sheet when present:
+     tagline   a few words next to the title
+     live      true shows a small "Live" badge
+     stack     short list shown in the row
+     link      the main button (the running project), source  a second button (the code)
+     spec      [label, text] rows
+     parts     [title, text] blocks, with partsTitle as their heading */
 export const projects = [
+  { slug: 'prime', title: 'Prime', category: 'Web', live: true, art: 'prime',
+    tagline: 'every health metric in one place',
+    summary: 'Every health metric in one place. Food, training, body and activity, tracked in a web app that runs on GitHub Pages.',
+    body: ['A personal health tracker I built for myself and use every day. Food, training, body and activity live in one web app that runs entirely on GitHub Pages, with no server behind it.'],
+    stack: ['React', 'TypeScript', 'PWA'],
+    link: 'https://prime.jakubadam.com', source: 'https://github.com/jakub-adam/prime',
+    spec: [
+      ['Type', 'Personal project. A web app you can add to an iPhone home screen.'],
+      ['Hosting', 'GitHub Pages. Static files only, deployed on every push.'],
+      ['Data', 'A private GitHub repo, read and written through the GitHub API. The token never leaves the browser.'],
+      ['Stack', 'Vite, React, TypeScript, Tailwind CSS, Radix, Recharts'],
+      ['Offline', 'Keeps working with the last data it loaded. Edits queue up and sync later.'],
+    ],
+    partsTitle: 'What it tracks',
+    parts: [
+      ['Food', 'Meals and macros, by day and by week.'],
+      ['Training', 'Strength sessions, logged set by set.'],
+      ['Body', 'Weight and measurements over time.'],
+      ['Activity', 'Runs and walks with route maps, splits and heart-rate zones.'],
+      ['Health', 'Apple Health import: heart, sleep stages, respiratory, mobility.'],
+      ['Today', 'The whole day at a glance, updated live from an iPhone Shortcut.'],
+    ] },
   { slug: 'jakubadam-com', title: 'jakubadam.com', category: 'Web', summary: 'This site, built with React and hosted on GitHub Pages.',
     body: ['This is my personal site. It is built with React, has no backend, and is published for free with GitHub Pages.'],
-    link: 'https://github.com/jakub-adam/jakub-adam.github.io' },
+    stack: ['React', 'No backend'],
+    source: 'https://github.com/jakub-adam/jakub-adam.github.io' },
   ...['Project two', 'Project three', 'Project four', 'Project five', 'Project six'].map((title, i) => ({
     slug: 'project-' + (i + 2), title, category: ['Design', 'Web', 'Other', 'Design', 'Other'][i], summary: sample, body: [sample, sample], sample: true,
   })),

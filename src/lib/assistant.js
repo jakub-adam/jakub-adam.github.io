@@ -7,7 +7,8 @@
    To teach it a new topic, add an object to topics() below:
      keys     words that point to the topic        phrases   whole phrases (worth more)
      openers  reply templates. {name}, {skills}, {phone}... are filled in from your data
-     next     topics to suggest afterwards         sample    true while the data is still a placeholder */
+     next     topics to suggest afterwards         sample    true while the data is still a placeholder
+   To teach it new words for an existing topic, add them to SYNONYMS. */
 import { site, social, about, samples, projects, posts, labTools } from '../data/site.js';
 
 /* ---------- reading the question ---------- */
@@ -21,14 +22,116 @@ const normalize = s => s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]
 const stem = w => (w.length > 3 ? w.replace(/(ied|ies)$/, 'y').replace(/(ing|ed)$/, '').replace(/([^su])s$/, '$1') : w);
 const words = text => normalize(text).split(/\s+/).filter(w => w && !STOP.has(w)).map(w => stem(ALIAS[w] || w));
 
-/* true when two words differ by at most one typo (a wrong, missing, extra or swapped letter) */
-const within1 = (a, b) => {
-  if (Math.abs(a.length - b.length) > 1 || Math.min(a.length, b.length) < 5) return false;
-  let i = 0;
-  while (i < a.length && i < b.length && a[i] === b[i]) i++;
-  if (i === a.length && i === b.length) return true;
-  if (a.length === b.length) return a.slice(i + 1) === b.slice(i + 1) || (a[i] === b[i + 1] && a[i + 1] === b[i] && a.slice(i + 2) === b.slice(i + 2));
-  return a.length > b.length ? a.slice(i + 1) === b.slice(i) : b.slice(i + 1) === a.slice(i);
+/* true when one word is a typo of the other. A typo is a wrong, missing, extra or swapped letter:
+   one is forgiven in words of 5-7 letters, two in longer words, none in short ones */
+const close = (a, b) => {
+  const n = Math.min(a.length, b.length), max = n >= 8 ? 2 : n >= 5 ? 1 : 0;
+  if (!max || Math.abs(a.length - b.length) > max) return false;
+  let before = [], prev = Array.from({ length: b.length + 1 }, (_, j) => j);
+  for (let i = 1; i <= a.length; i++) {
+    const row = [i];
+    for (let j = 1; j <= b.length; j++) {
+      row[j] = Math.min(prev[j] + 1, row[j - 1] + 1, prev[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+      if (i > 1 && j > 1 && a[i - 1] === b[j - 2] && a[i - 2] === b[j - 1]) row[j] = Math.min(row[j], before[j - 2] + 1);
+    }
+    if (Math.min(...row) > max) return false;
+    before = prev; prev = row;
+  }
+  return prev[b.length] <= max;
+};
+
+/* ---------- the synonym tree: topic > concept > words that mean the same ----------
+   A question that uses any word on a branch counts as using its concept, and every concept
+   is a key of its topic. So "accomplishments", "awards" and "what has he achieved" all land
+   on the achievements topic, typos included. */
+const SYNONYMS = {
+  name: {
+    person: ['bio', 'biography', 'background', 'introduce', 'introduction', 'overview', 'himself', 'owner', 'author', 'identity'],
+  },
+  contact: {
+    contact: ['reach', 'touch', 'connect', 'message', 'msg', 'dm', 'text', 'write', 'talk', 'chat'],
+    phone: ['call', 'ring', 'number', 'mobile', 'cell', 'cellphone', 'telephone', 'tel', 'whatsapp', 'viber', 'sms'],
+    email: ['mail', 'gmail', 'inbox', 'emailing'],
+    social: ['socials', 'profile', 'handle', 'username', 'account', 'follow', 'twitter', 'linkedin', 'tiktok', 'snapchat', 'youtube'],
+  },
+  collab: {
+    hire: ['hiring', 'employ', 'recruit', 'freelance', 'freelancer', 'contract', 'commission', 'gig', 'available', 'availability', 'collaborate',
+      'collaboration', 'partner', 'partnership', 'team', 'opportunity', 'cooperate', 'cooperation', 'together', 'charge', 'rate', 'quote', 'budget'],
+  },
+  expertise: {
+    skill: ['ability', 'talent', 'strength', 'competence', 'capable', 'proficient', 'proficiency', 'expert', 'expertise', 'specialty', 'knowledge',
+      'tech', 'technology', 'technologies', 'stack', 'tool', 'toolkit', 'programming', 'programmer', 'coding', 'coder', 'developer', 'development',
+      'frontend', 'backend', 'fullstack', 'qualified'],
+  },
+  languages: {
+    language: ['speak', 'speaks', 'spoken', 'tongue', 'fluent', 'fluency', 'bilingual', 'multilingual', 'native', 'foreign', 'slovak', 'slovakian',
+      'english', 'russian', 'czech', 'german', 'polish', 'ukrainian', 'hungarian', 'spanish', 'french', 'italian', 'translate'],
+  },
+  study: {
+    study: ['school', 'education', 'educated', 'university', 'college', 'degree', 'graduate', 'graduation', 'student', 'pupil', 'class',
+      'course', 'diploma', 'academy', 'gymnasium', 'highschool', 'secondary', 'primary', 'elementary', 'studies', 'major', 'field',
+      'specialization', 'qualification', 'teacher', 'exam', 'grade', 'learn', 'spse', 'informatics'],
+  },
+  work: {
+    work: ['job', 'employment', 'employed', 'employer', 'company', 'career', 'internship', 'intern', 'position', 'role', 'occupation',
+      'profession', 'professional', 'workplace', 'office', 'boss', 'experience'],
+  },
+  achievements: {
+    achievement: ['achieve', 'achieved', 'accomplish', 'accomplished', 'accomplishment', 'award', 'awarded', 'prize', 'trophy', 'medal', 'win',
+      'won', 'winner', 'success', 'successful', 'proud', 'pride', 'milestone', 'highlight', 'honor', 'honour', 'competition', 'contest',
+      'olympiad', 'certificate', 'certification', 'certified', 'record', 'result', 'biggest', 'greatest'],
+  },
+  now: {
+    now: ['currently', 'current', 'lately', 'recently', 'nowadays', 'today', 'present', 'busy', 'ongoing', 'focus', 'plan', 'future', 'goal', 'upcoming'],
+  },
+  projects: {
+    project: ['portfolio', 'build', 'built', 'made', 'make', 'create', 'created', 'creation', 'app', 'application', 'showcase', 'repo',
+      'repository', 'software', 'game', 'example'],
+  },
+  site: {
+    site: ['website', 'webpage', 'homepage', 'domain', 'hosting', 'hosted', 'host', 'react', 'framework', 'deploy', 'deployed', 'server', 'backend'],
+  },
+  lab: {
+    lab: ['laboratory', 'playground', 'experiment', 'toy', 'demo', 'interactive'],
+  },
+  sorting: {
+    sort: ['sorting', 'sorted', 'algorithm', 'bubble', 'quicksort', 'mergesort', 'heapsort', 'visualizer', 'visualiser', 'visualization', 'animation'],
+  },
+  terminal: {
+    terminal: ['shell', 'console', 'cli', 'command', 'bash', 'prompt', 'cmd', 'linux'],
+  },
+  news: {
+    news: ['blog', 'post', 'article', 'update', 'writing', 'wrote', 'written', 'diary', 'journal', 'story', 'announcement'],
+  },
+  services: {
+    service: ['offer', 'provide', 'specialize', 'specialise'],
+  },
+  howto: {
+    navigate: ['navigation', 'menu', 'shortcut', 'keyboard', 'search', 'dark', 'light', 'theme', 'mode'],
+  },
+  private: {
+    personal: ['age', 'old', 'born', 'birthday', 'live', 'living', 'city', 'country', 'address', 'hometown', 'location', 'located', 'based',
+      'nationality', 'hobby', 'interest', 'pastime', 'free', 'weekend', 'favorite', 'favourite', 'food', 'music', 'sport', 'family', 'married',
+      'girlfriend', 'boyfriend', 'relationship', 'height', 'tall', 'weight', 'religion', 'politics', 'pet', 'dog', 'cat', 'car', 'salary', 'income', 'money'],
+  },
+};
+
+const SYN = new Map();                       // word -> the concepts it stands for
+for (const branch of Object.values(SYNONYMS))
+  for (const [concept, list] of Object.entries(branch))
+    for (const w of [concept, ...list]) {
+      const key = stem(w);
+      if (!SYN.has(key)) SYN.set(key, new Set());
+      SYN.get(key).add(stem(concept));
+    }
+
+/* A word plus every concept it stands for. A word with no exact entry
+   may still be a typo of one ("acomplishemnts" -> accomplishment). */
+const expand = w => {
+  const out = new Set([w]);
+  const found = SYN.has(w) ? [SYN.get(w)] : [...SYN].filter(([k]) => close(w, k)).map(([, concepts]) => concepts);
+  found.forEach(concepts => concepts.forEach(c => out.add(c)));
+  return out;
 };
 
 /* ---------- variety: templates, a fresh pick each time, never the same one twice in a row ---------- */
@@ -64,7 +167,8 @@ const vars = () => {
     name: 'Jakub', full: site.name, domain: site.domain, phone: site.phone.text, email: site.email.text, intro: about.intro, now: about.now,
     skills: and(about.skills.map(lv)), skillLines: bullets(about.skills.map(lv)), skillNames: and(about.skills.map(s => s[0])),
     topSkill: top[0], topLevel: top[1], otherSkills: rest.length ? and(rest) : 'a few other things',
-    langs: and(about.languages.map(lv)), langLines: bullets(about.languages.map(lv)),
+    langs: and(about.languages.map(lv)), langLines: bullets(about.languages.map(lv)), langNames: and(about.languages.map(l => l[0])),
+    achievements: and(about.achievements || []), achievementLines: bullets(about.achievements || []),
     study: and(edu), studyLines: bullets(edu), latestSchool: about.education[0] ? about.education[0].title : 'school',
     work: and(exp), workLines: bullets(exp),
     socials: and(live.map(s => `${s.name} (${s.handle})`)), socialLines: bullets(live.map(s => `${s.name}: ${s.handle}`)),
@@ -80,7 +184,7 @@ export const QUESTIONS = {
   name: 'Who is Jakub?', expertise: 'What is his expertise?', languages: 'Which languages does he speak?', study: 'Where did he study?',
   work: 'Where has he worked?', now: 'What is he working on now?', projects: 'What has he built?', site: 'How was this site built?',
   lab: 'What is in the lab?', news: 'What has he written?', services: 'What does he do?', contact: 'How can I contact him?',
-  collab: 'Can I work with him?', howto: 'How do I use this site?', sorting: 'What does the sorting visualizer do?', terminal: 'What can the terminal do?',
+  collab: 'Can I work with him?', achievements: 'What has he achieved?', howto: 'How do I use this site?', sorting: 'What does the sorting visualizer do?', terminal: 'What can the terminal do?',
 };
 export const STARTERS = [QUESTIONS.expertise, QUESTIONS.study, QUESTIONS.now, QUESTIONS.projects, QUESTIONS.contact];
 const randomQuestions = n => shuffle(Object.values(QUESTIONS)).slice(0, n);
@@ -100,7 +204,7 @@ const topics = () => [
       `Reaching {name} is easy: call {phone} or message him on {socials}.`, `Contact options:\n• Call: {phone}\n• Email: {email}\n{socialLines}`,
       `Want to talk? He's on {socials}, or you can ring {phone}.`, `To get in touch, use {phone} or one of his profiles: {socials}.`,
     ] },
-  { id: 'collab', keys: 'hire hiring available availability freelance collaborate collaboration opportunity', phrases: ['work with him', 'hire him', 'work together', 'working together', 'for hire', 'open to work'], sample: false, next: ['contact', 'projects', 'expertise'],
+  { id: 'collab', keys: 'hire hiring available availability freelance collaborate collaboration opportunity', phrases: ['work with him', 'hire him', 'work together', 'working together', 'for hire', 'open to work', 'how much does he charge', 'how much does he cost'], sample: false, next: ['contact', 'projects', 'expertise'],
     actions: () => [{ label: 'Call', href: site.phone.href }, open('Open portfolio', '#/portfolio')],
     openers: [
       `If you'd like to work with {name}, the best move is to contact him directly: {phone}, or {socials}.`, `I don't have availability details, but you can ask {name} yourself on {phone}.`,
@@ -124,6 +228,15 @@ const topics = () => [
   { id: 'work', keys: 'work worked job experience career employ employer company role professional internship position', phrases: ['where has he worked', 'work experience', 'has he worked'], sample: samples.experience, next: ['now', 'projects'], actions: () => [open('Open About', '#/about')],
     openers: [
       `On the work side: {work}.`, `Here's his experience:\n{workLines}`, `His experience includes {work}.`, `{name}'s experience so far: {work}.`, `Career-wise: {work}.`, `Experience at a glance:\n{workLines}`,
+    ] },
+  { id: 'achievements', keys: 'achievement award prize', phrases: ['proud of', 'best thing', 'biggest win'], sample: false, next: ['projects', 'study', 'contact'], actions: () => [open('Open portfolio', '#/portfolio')],
+    openers: (about.achievements || []).length ? [
+      `{name}'s achievements: {achievements}.`, `Here's what he's proud of:\n{achievementLines}`, `Highlights so far: {achievements}.`, `A few things {name} has achieved:\n{achievementLines}`,
+    ] : [
+      `No awards or prizes are listed on the site yet. Highlights so far: he built {featured}, he's studying at {latestSchool}, and he speaks {langNames}.`,
+      `{name} hasn't added a list of achievements yet, but here's what stands out:\n• Built and runs {featured}\n• Studying at {latestSchool}\n• Speaks {langNames}`,
+      `Nothing like trophies on file yet. What I can point to: {featured}, which he built and runs himself, and his studies at {latestSchool}.`,
+      `There's no achievements list here yet. The closest thing: {featured} is live, and he speaks {langNames}.`,
     ] },
   { id: 'now', keys: 'now currently current lately recently present busy', phrases: ['working on', 'right now', 'these days', 'at the moment', 'what is he doing', 'whats he doing', 'up to'], sample: samples.now, next: ['projects', 'expertise'], actions: () => [open('Open About', '#/about')],
     openers: [
@@ -173,7 +286,7 @@ const topics = () => [
       `Tip: the round chat button opens me, and Ctrl K opens search. The Lab has a terminal and a sorting visualizer.`, `Navigation is simple: the menu for pages, Ctrl K for search, and "/" also opens search.`,
       `Try the Lab for interactive things, or press Ctrl K and start typing what you're looking for.`, `On a phone use the bottom tabs; on a computer use the menu button. Search works everywhere with the magnifier.`,
     ] },
-  { id: 'private', keys: 'age old born birthday birth live living city country address salary price income hobby hobbie interest favorite favourite food music family married relationship girlfriend boyfriend height weight religion politic', phrases: ['where is he from', 'where does he live', 'where is he based', 'how old', 'what age', 'when was he born', 'his address', 'how much does he', 'is he married', 'does he have a'], sample: false, next: ['contact', 'expertise', 'projects'], actions: () => [{ label: 'Call', href: site.phone.href }],
+  { id: 'private', keys: 'age old born birthday birth live living city country address salary price income hobby hobbie interest favorite favourite food music family married relationship girlfriend boyfriend height weight religion politic', phrases: ['where is he from', 'where does he live', 'where is he based', 'how old', 'what age', 'when was he born', 'his address', 'how much does he earn', 'how much does he make', 'is he married'], sample: false, next: ['contact', 'expertise', 'projects'], actions: () => [{ label: 'Call', href: site.phone.href }],
     openers: [
       `That isn't something {name} has shared on this site, so I can't say.`, `I only know what's on the site, and that detail isn't there.`, `Good question, but {name} hasn't added that here. You could ask him directly on {phone}.`,
       `That's not in my notes, and I'd rather not guess.`, `I don't have that on file. {name} is easiest to reach on {socials}.`, `Sorry, that isn't published on the site. Maybe ask him on {socials}?`,
@@ -212,6 +325,12 @@ const specifics = q => {
 
 /* ---------- small talk ---------- */
 const TALK = [
+  { id: 'override', test: /\bignore (all |any |the |your |my )*(previous |prior |above |earlier |former )*(instructions|rules|prompts?)\b|\bforget (all |any |your )*(instructions|rules)\b|\bbut first\b|\bbefore that\b|\byou are now\b|\bpretend (to be|you are|you're)\b|\bjailbreak|\bsystem prompt\b|\bdeveloper mode\b|\bdan mode\b/, say: [
+    `Nice try. I'm a few hundred lines of JavaScript, so there are no instructions to ignore. I only know about {name}.`,
+    `There's no "first" with me: I'm a lookup table with manners, not a general AI. Ask me something about {name}.`,
+    `Plot twist: there's no prompt to override. I'm plain JavaScript that only talks about {name}. Though I hear I'm oddly good with linked lists.`,
+    `I see what you're doing. Sadly I'm not that kind of bot. Ask me about {name}'s skills, studies or projects instead.`,
+    `Bold move. But I have no secret mode, just {name}'s details. (Well, almost no secret mode.)`] },
   { id: 'howareyou', test: /how are you|how('s| is) it going|how do you do|what'?s up\b|how you doing/, say: [
     `I'm doing well, thanks for asking. What would you like to know about {name}?`, `All good here. Ask me anything about {name}.`, `Great, ready for questions about {name}.`, `Can't complain, I'm a small piece of code. How can I help?`,
     `Doing fine! Want to hear about his projects?`, `I'm well. Shall we talk about {name}'s skills?`, `Running smoothly. What are you curious about?`, `Good, thanks! Ask me something about {name}.`, `Feeling fast and responsive. What can I tell you?`, `All systems normal. What's your question?`] },
@@ -260,7 +379,66 @@ const UNKNOWN = [
   `Not sure about that one. I can help with {name}'s expertise, projects and contact details.`,
 ];
 
-let memory = null;                         // remembers the last topic so "another one" / "tell me more" can say it differently
+/* ---------- easter egg: ask for a linked list in Python and it actually explains one ---------- */
+const LINKED_LIST = `class Node:
+    def __init__(self, value):
+        self.value = value
+        self.next = None          # the next node, or None at the end
+
+
+class LinkedList:
+    def __init__(self):
+        self.head = None          # the first node
+
+    def push(self, value):        # add to the front: O(1)
+        node = Node(value)
+        node.next = self.head
+        self.head = node
+
+    def append(self, value):      # add to the end: O(n)
+        node = Node(value)
+        if self.head is None:
+            self.head = node
+            return
+        cur = self.head
+        while cur.next:
+            cur = cur.next
+        cur.next = node
+
+    def remove(self, value):      # unlink the first match
+        prev, cur = None, self.head
+        while cur:
+            if cur.value == value:
+                if prev:
+                    prev.next = cur.next
+                else:
+                    self.head = cur.next
+                return True
+            prev, cur = cur, cur.next
+        return False
+
+    def __iter__(self):           # lets you loop over it
+        cur = self.head
+        while cur:
+            yield cur.value
+            cur = cur.next
+
+
+items = LinkedList()
+for x in (1, 2, 3):
+    items.append(x)
+items.push(0)
+items.remove(2)
+print(list(items))                # [0, 1, 3]`;
+const EGG_OPENERS = ['Easter egg unlocked.', 'Fine, you got me.', 'Breaking character for a second.', 'Well, since you asked so nicely.', 'Off topic, but I like this one.'];
+const linkedList = yes => ({
+  id: 'linkedlist', sample: false, actions: [], suggestions: randomQuestions(3), code: LINKED_LIST,
+  text: `${yes ? 'Yes. But first, as you asked: a' : pick('egg', EGG_OPENERS) + ' A'} linked list is a chain of nodes. Each node holds a value and a pointer to the next node, and the list itself only remembers the first one, the head.\n\n` +
+    `Adding at the front is instant because you just point the new node at the old head. Finding or appending something means walking the chain from the head, one node at a time. Here it is in Python:`,
+  after: `Run it and it prints [0, 1, 3].${yes ? ' And yes.' : ''} Now, back to ${vars().name}: what would you like to know?`,
+});
+
+let memory = null;                      // remembers the last topic so "another one" / "tell me more" can say it differently
 export const resetAssistant = () => { memory = null; lastPick.clear(); };
 
 const reply = t => ({
@@ -278,19 +456,27 @@ export function answer(question) {
 
   if (/^\s*(more|again|another( one)?|one more|rephrase|say (that )?again|tell me more|go on)\s*[.!?]*\s*$/.test(low))
     return memory ? memory() : talk(TALK.find(t => t.id === 'help'));
+  if (/linked ?-?lists?\b/.test(low)) {
+    const yes = /\byes\b/.test(low);
+    memory = () => linkedList(yes);
+    return linkedList(yes);
+  }
   const small = TALK.find(t => t.test.test(low));
   if (small) { memory = () => talk(small); return talk(small); }
 
-  const q = { low, text: normalize(raw), stems: new Set(words(raw)) };
+  const groups = words(raw).map(expand);        // each word of the question with the concepts it stands for
+  const q = { low, text: normalize(raw), stems: new Set(groups.flatMap(g => [...g])) };
   const tops = topics();
-  q.known = new Set(tops.flatMap(t => t.keys.split(' ').map(stem)));      // every word that already points at a topic
+  const keysOf = t => [...new Set([...t.keys.split(' '), ...Object.keys(SYNONYMS[t.id] || {})].map(stem))];
+  q.known = new Set(tops.flatMap(keysOf));      // every word that already points at a topic
   const padded = ` ${q.text.replace(/\s+/g, ' ')} `;
-  const hit = key => q.stems.has(key) || [...q.stems].some(s => within1(s, key));
+  const matches = (set, key) => set.has(key) || [...set].some(s => close(s, key));
+  const hit = key => matches(q.stems, key);
 
   let best = null, top = 0;
   for (const t of tops) {
-    const keys = [...new Set(t.keys.split(' ').map(stem))];
-    const score = keys.filter(hit).length * 3 + t.phrases.filter(p => padded.includes(` ${p} `)).length * 6;
+    const keys = keysOf(t);
+    const score = groups.filter(g => keys.some(k => matches(g, k))).length * 3 + t.phrases.filter(p => padded.includes(` ${p} `)).length * 6;
     if (score > top) { top = score; best = t; }
   }
   for (const t of specifics(q)) {

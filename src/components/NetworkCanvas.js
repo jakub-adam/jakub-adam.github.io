@@ -1,355 +1,350 @@
 import { html, useEffect, useRef } from '../lib/html.js';
 import { reduceMotion } from '../lib/motion.js';
+import { site } from '../data/site.js';
+import { STARS, FIGURES, FIELD, NAMED, TOUR, siderealTime, altAz, sunNow, sunDay, clock, raText, decText } from '../lib/sky.js';
 
-/* The sky in the left panel, drawn on a <canvas>. It follows the theme:
-   light theme = daytime, dark theme = night. Switching the theme plays a sunset or a sunrise.
+/* The sky in the left panel, drawn on a <canvas> as a small instrument. It follows the theme:
+   dark theme = a star chart, light theme = a sun chart. Switching the theme cross-fades the two.
+   Both are computed for the place in src/data/site.js (site.place) and the visitor's clock.
 
    Night
-   - stars in three layers: far ones are small and slow, near ones bigger and faster
-   - the sky drifts on a slow current that swings direction, so it flows instead of sliding
-   - each star twinkles at its own pace, a moon hangs in the corner
-   - shooting stars now and then; click anywhere to send one
-   - the cursor links the stars closest to it, like drawing a constellation
+   - the real northern sky around Polaris, turned to where it is right now (it rotates once a day)
+   - constellations as line art, the horizon as a dashed curve, stars below it dimmed
+   - the cursor shifts the stars slightly (near ones more) and reads out the star closest to it;
+     when nobody is pointing, the readout visits a few bright stars on its own
+   - click anywhere for a shooting star
 
    Day
-   - a sun, and clouds drifting on the wind at different heights and speeds
-   - the cursor gently pushes clouds out of the way
-   - click a cloud and it rains for a moment
-   - a small flock of birds flies past now and then
+   - the sun's path for today from sunrise to sunset, a dot for every full hour
+   - the sun where it actually is, with its height and compass direction
+   - flat clouds drifting on a slow wind
 
    Tweak the numbers below to change the feel. */
-const DENSITY = 2000;                  // one star per this many square pixels
-const MAX_STARS = 420;
-const FLOW = 9;                        // star drift speed of the nearest layer, in pixels per second
-const LAYERS = [                       // share of the stars, size range, speed factor, brightness
-  { share: 0.6, size: [0.3, 0.8], speed: 0.25, light: 0.55 },
-  { share: 0.3, size: [0.7, 1.3], speed: 0.55, light: 0.8 },
-  { share: 0.1, size: [1.2, 2.0], speed: 1, light: 1 },
-];
-const TINTS = ['255,255,255', '255,255,255', '255,255,255', '205,222,255', '255,236,212'];
-const NIGHT = { top: [0, 0, 0], bottom: [4, 8, 20] };
-const DAY = { top: [46, 120, 210], bottom: [150, 206, 242] };
-const CLOUD_AREA = 70000;              // one cloud per this many square pixels
-const SHOOTING_EVERY = [5000, 14000];  // milliseconds between shooting stars
-const BIRDS_EVERY = [7000, 16000];     // milliseconds between flocks of birds
-const LINK = 120;                      // how far the cursor reaches to link stars, in pixels
-const TILT = 24;                       // how far the near layer moves with the cursor, in pixels
-const SUNSET = 1.8;                    // how fast day turns to night and back (higher = faster)
+const SCALE = 0.0069;        // star chart zoom: pixels per degree, as a share of the panel height
+const CENTRE = [0.56, 0.39]; // where Polaris sits in the panel (share of width, share of height)
+const TILT = 9;              // how far the brightest stars shift with the cursor, in pixels
+const REACH = 34;            // how close the cursor must be to a star to read it out, in pixels
+const TOUR_EVERY = 6;        // seconds the readout stays on a star when nobody is pointing
+const SUNSET = 3;            // how fast day turns to night and back (higher = faster)
+const CLOUD_AREA = 90000;    // one cloud per this many square pixels
+const SHOT_EVERY = [9, 24];  // seconds between shooting stars
+const AZ = [60, 300];        // compass range across the sun chart (east on the left, west on the right)
+const TOP_ALT = 66;          // the sun height that reaches the top of the sun chart, in degrees
 
+const RAD = Math.PI / 180;
+const NIGHT_BG = '#0A0A0C';
+const ACCENT = '#2563EB';
 const rand = (a, b) => a + Math.random() * (b - a);
-const mix = (a, b, t) => a + (b - a) * t;
-const mixColor = (a, b, t) => a.map((v, i) => Math.round(mix(v, b[i], t))).join(',');
-const smooth = t => t * t * (3 - 2 * t);
 const isDay = () => document.documentElement.getAttribute('data-theme') !== 'dark';
-
-const pickLayer = () => {
-  let r = Math.random();
-  for (const layer of LAYERS) {
-    r -= layer.share;
-    if (r <= 0) return layer;
-  }
-  return LAYERS[0];
-};
+const mono = size => `500 ${size}px 'Geist Mono', ui-monospace, Menlo, Consolas, monospace`;
+const starSize = mag => Math.max(0.45, Math.min(2.4, 2.35 - mag * 0.32));
 
 export function NetworkCanvas() {
   const ref = useRef(null);
 
   useEffect(() => {
     const canvas = ref.current, g = canvas.getContext('2d'), box = canvas.parentElement;
-    // Clouds are drawn on their own layer first, so they fade in and out as whole shapes
-    const cloudLayer = document.createElement('canvas'), cg = cloudLayer.getContext('2d');
-    let w = 0, h = 0, time = 0, raf = 0, last = 0, visible = true;
-    let stars = [], clouds = [], drops = [], birds = [], shot = null;
-    let nextShot = rand(...SHOOTING_EVERY), nextBirds = rand(2000, 6000);
+    const { lat, lon } = site.place;
+    let w = 0, h = 0, time = 0, raf = 0, last = 0, visible = true, slow = 0;
     let day = isDay() ? 1 : 0, dayGoal = day;          // 1 = full day, 0 = full night
+    let clouds = [], shot = null, nextShot = rand(...SHOT_EVERY), grain = null;
+    let path = null, pathKey = '', tourAt = 0, tourStar = TOUR[0];
     const pointer = { x: 0, y: 0, on: false };
     const tilt = { x: 0, y: 0 };
 
-    /* ---------- making things ---------- */
-    const makeStar = () => {
-      const layer = pickLayer();
+    /* ---------- setup ---------- */
+    const makeCloud = x => {
+      const rows = 2 + Math.floor(Math.random() * 2), len = rand(90, 190);
       return {
-        x: Math.random() * w, y: Math.random() * h, layer,
-        r: rand(...layer.size),
-        tint: TINTS[Math.floor(Math.random() * TINTS.length)],
-        phase: Math.random() * Math.PI * 2,
-        pace: rand(0.5, 2),
+        x, y: rand(0.1, 0.46), speed: rand(3, 9), thick: rand(9, 14),
+        rows: Array.from({ length: rows }, (_, i) => ({ dx: rand(-20, 40) + i * 14, len: len * rand(0.55, 1) })),
       };
     };
 
-    // A cloud is a row of overlapping circles ("puffs"), biggest in the middle
-    const makeCloud = anywhere => {
-      const size = rand(0.6, 1.3), count = 5 + Math.floor(Math.random() * 3), middle = (count - 1) / 2;
-      const puffs = Array.from({ length: count }, (_, i) => ({
-        dx: (i - middle) * 20 * size + rand(-4, 4),
-        dy: -Math.max(0, 1 - Math.abs(i - middle) / (middle + 1)) * 14 * size + rand(-3, 3),
-        r: (26 - Math.abs(i - middle) * 4) * size + rand(0, 5),
-      }));
-      const half = middle * 20 * size + 30 * size;
-      const y = rand(0.08, 0.62) * h;
-      return {
-        x: anywhere ? Math.random() * w : -half - 10, y, homeY: y, half, puffs,
-        speed: 6 + 14 * size,           // bigger clouds look closer, so they move faster
-        push: { x: 0, y: 0 }, wobble: 0, rain: 0,
-      };
+    const makeGrain = () => {
+      const tile = document.createElement('canvas'), t = tile.getContext('2d');
+      tile.width = tile.height = 128;
+      const img = t.createImageData(128, 128);
+      for (let i = 0; i < img.data.length; i += 4) img.data[i + 3] = Math.random() * 22;   // black specks, very faint
+      t.putImageData(img, 0, 0);
+      return g.createPattern(tile, 'repeat');
     };
 
-    const launchShootingStar = (x, y) => {
-      const goingRight = x === undefined ? Math.random() < 0.5 : x < w / 2;
-      const angle = rand(0.3, 0.7) * (goingRight ? 1 : -1) + (goingRight ? 0 : Math.PI);
-      shot = {
-        x: x ?? rand(0.15, 0.85) * w, y: y ?? rand(0, 0.45) * h,
-        angle, speed: rand(600, 900), age: 0, life: rand(700, 1100),
-      };
-    };
-
-    const launchBirds = () => {
-      const y = rand(0.1, 0.4) * h, count = 2 + Math.floor(Math.random() * 3), speed = rand(45, 70);
-      for (let i = 0; i < count; i++) {
-        birds.push({ x: -20 - i * 18, y: y + (i % 2 ? 10 : -6) * Math.ceil(i / 2), speed, flap: Math.random() * 6, size: rand(4, 6) });
-      }
-    };
-
-    const build = () => {
-      const rect = box.getBoundingClientRect(), dpr = Math.min(devicePixelRatio || 1, 2), oldW = w, oldH = h;
-      w = rect.width; h = rect.height;
-      canvas.width = cloudLayer.width = Math.round(w * dpr);
-      canvas.height = cloudLayer.height = Math.round(h * dpr);
+    const resize = () => {
+      const r = box.getBoundingClientRect();
+      const dpr = Math.min(devicePixelRatio || 1, 2);
+      w = r.width; h = r.height;
+      canvas.width = Math.max(1, Math.round(w * dpr)); canvas.height = Math.max(1, Math.round(h * dpr));
       g.setTransform(dpr, 0, 0, dpr, 0, 0);
-      cg.setTransform(dpr, 0, 0, dpr, 0, 0);
-      if (oldW && oldH) {                                   // keep the same sky, just rescale it
-        stars.forEach(s => { s.x *= w / oldW; s.y *= h / oldH; });
-        clouds.forEach(c => { c.x *= w / oldW; c.y *= h / oldH; c.homeY *= h / oldH; });
-      }
-      const wantStars = Math.min(MAX_STARS, Math.round((w * h) / DENSITY));
-      while (stars.length > wantStars) stars.pop();
-      while (stars.length < wantStars) stars.push(makeStar());
-      const wantClouds = Math.max(3, Math.min(9, Math.round((w * h) / CLOUD_AREA)));
-      while (clouds.length > wantClouds) clouds.pop();
-      while (clouds.length < wantClouds) clouds.push(makeCloud(true));
-      draw(0);
+      const wanted = Math.max(3, Math.round((w * h) / CLOUD_AREA));
+      clouds = Array.from({ length: wanted }, () => makeCloud(rand(-100, w)));
+      grain = makeGrain();
+      if (reduceMotion) draw(0);
     };
 
-    /* ---------- drawing ---------- */
-    const drawBackground = () => {
-      const sky = g.createLinearGradient(0, 0, 0, h);
-      sky.addColorStop(0, `rgb(${mixColor(NIGHT.top, DAY.top, day)})`);
-      sky.addColorStop(1, `rgb(${mixColor(NIGHT.bottom, DAY.bottom, day)})`);
-      g.fillStyle = sky;
-      g.fillRect(0, 0, w, h);
+    const text = (s, x, y, color, align = 'left', size = 9.5) => {
+      g.font = mono(size); g.textAlign = align; g.fillStyle = color;
+      try { g.letterSpacing = '1px'; } catch (e) {}
+      g.fillText(s, x, y);
     };
 
-    // The sun sinks below the bottom edge as night falls, and the moon rises as it does
-    const drawSunAndMoon = () => {
-      const up = smooth(day), x = w * 0.74 + tilt.x * 0.3;
-      if (day > 0.01) {
-        const y = mix(h * 1.15, h * 0.2, up) + tilt.y * 0.3, glow = g.createRadialGradient(x, y, 0, x, y, 110);
-        glow.addColorStop(0, `rgba(255,246,210,${0.75 * day})`);
-        glow.addColorStop(1, 'rgba(255,246,210,0)');
-        g.fillStyle = glow; g.beginPath(); g.arc(x, y, 110, 0, Math.PI * 2); g.fill();
-        g.fillStyle = `rgba(255,250,228,${day})`; g.beginPath(); g.arc(x, y, 30, 0, Math.PI * 2); g.fill();
-      }
-      if (day < 0.99) {
-        const y = mix(h * 0.17, h * 1.15, up) + tilt.y * 0.3, fade = 1 - day;
-        const glow = g.createRadialGradient(x, y, 0, x, y, 70);
-        glow.addColorStop(0, `rgba(210,225,255,${0.25 * fade})`);
-        glow.addColorStop(1, 'rgba(210,225,255,0)');
-        g.fillStyle = glow; g.beginPath(); g.arc(x, y, 70, 0, Math.PI * 2); g.fill();
-        g.fillStyle = `rgba(238,240,232,${fade})`; g.beginPath(); g.arc(x, y, 18, 0, Math.PI * 2); g.fill();
-        g.fillStyle = `rgba(190,195,200,${0.5 * fade})`;     // a few craters
-        [[-6, -4, 4], [5, 3, 3], [-2, 8, 2.5]].forEach(([dx, dy, r]) => { g.beginPath(); g.arc(x + dx, y + dy, r, 0, Math.PI * 2); g.fill(); });
-      }
-    };
+    /* ---------- night: the star chart ---------- */
+    const drawNight = (a, now, dt) => {
+      const cx = w * CENTRE[0], cy = h * CENTRE[1], k = Math.max(h, w * 1.25) * SCALE;
+      const lst = siderealTime(now, lon), turn = lst * 15 * RAD;
+      const white = o => `rgba(255,255,255,${(o * a).toFixed(3)})`;
+      /* From sky to screen. Facing north, a star due south of the pole is straight above it,
+         and the whole sky turns anticlockwise. depth = how much the star follows the cursor. */
+      const place = (ra, dec, depth = 0) => {
+        const H = turn - ra * 15 * RAD, r = (90 - dec) * k;
+        return [cx - r * Math.sin(H) + tilt.x * depth, cy - r * Math.cos(H) + tilt.y * depth];
+      };
+      const above = (ra, dec) => altAz(ra, dec, lst, lat).alt > 0;
+      const inside = (x, y, m = 12) => x > -m && x < w + m && y > -m && y < h + m;
 
-    const drawStars = (sec, flowX, flowY) => {
-      const night = 1 - day, near = [];
-      for (const s of stars) {
-        const speed = s.layer.speed;
-        s.x += (flowX + Math.sin(s.y * 0.012 + time * 0.0003) * 3) * speed * sec;
-        s.y += (flowY + Math.cos(s.x * 0.012 + time * 0.00025) * 3) * speed * sec;
-        if (s.x < -10) s.x += w + 20; else if (s.x > w + 10) s.x -= w + 20;     // wrap around the edges
-        if (s.y < -10) s.y += h + 20; else if (s.y > h + 10) s.y -= h + 20;
-        if (night < 0.01) continue;
-
-        const x = s.x + tilt.x * speed, y = s.y + tilt.y * speed;
-        const shine = night * s.layer.light * (0.65 + 0.35 * Math.sin(s.phase + time * 0.001 * s.pace));
-        if (s.r > 1.1) {                                     // soft glow around the brighter stars
-          g.fillStyle = `rgba(${s.tint},${(shine * 0.12).toFixed(3)})`;
-          g.beginPath(); g.arc(x, y, s.r * 3.5, 0, Math.PI * 2); g.fill();
-        }
-        g.fillStyle = `rgba(${s.tint},${shine.toFixed(3)})`;
-        g.beginPath(); g.arc(x, y, s.r, 0, Math.PI * 2); g.fill();
-
-        if (pointer.on && s.layer !== LAYERS[0]) {
-          const d = Math.hypot(x - pointer.x, y - pointer.y);
-          if (d < LINK) near.push({ x, y, d });
-        }
-      }
-      // Faint lines from the cursor to the closest stars
-      near.sort((a, b) => a.d - b.d).slice(0, 5).forEach(p => {
-        g.strokeStyle = `rgba(255,255,255,${(0.35 * night * (1 - p.d / LINK)).toFixed(3)})`;
-        g.beginPath(); g.moveTo(pointer.x, pointer.y); g.lineTo(p.x, p.y); g.stroke();
-      });
-    };
-
-    const drawShootingStar = sec => {
-      if (!shot) return;
-      shot.age += sec * 1000;
-      shot.x += Math.cos(shot.angle) * shot.speed * sec;
-      shot.y += Math.sin(shot.angle) * shot.speed * sec;
-      const fade = Math.sin(Math.PI * Math.min(1, shot.age / shot.life)) * (1 - day);
-      const tailX = shot.x - Math.cos(shot.angle) * 140, tailY = shot.y - Math.sin(shot.angle) * 140;
-      const tail = g.createLinearGradient(tailX, tailY, shot.x, shot.y);
-      tail.addColorStop(0, 'rgba(255,255,255,0)');
-      tail.addColorStop(1, `rgba(255,255,255,${(0.9 * fade).toFixed(3)})`);
-      g.strokeStyle = tail; g.lineWidth = 1.4;
-      g.beginPath(); g.moveTo(tailX, tailY); g.lineTo(shot.x, shot.y); g.stroke();
-      g.lineWidth = 1;
-      if (shot.age >= shot.life) { shot = null; nextShot = rand(...SHOOTING_EVERY); }
-    };
-
-    const drawClouds = sec => {
-      let hovering = false;
-      cg.clearRect(0, 0, w, h);
-      for (const c of clouds) {
-        // the wind, plus whatever push the cursor gave it, which slowly fades
-        c.x += (c.speed + c.push.x) * sec;
-        c.y += c.push.y * sec + (c.homeY - c.y) * Math.min(1, sec * 0.4);
-        const calm = Math.pow(0.2, sec);
-        c.push.x *= calm; c.push.y *= calm;
-        if (c.x - c.half > w + 10) Object.assign(c, makeCloud(false));
-
-        if (pointer.on && day > 0.5) {
-          const dx = c.x - pointer.x, dy = c.y - pointer.y, d = Math.hypot(dx, dy) || 1, reach = c.half + 50;
-          if (d < reach) {
-            const force = (1 - d / reach) * 260 * sec;
-            c.push.x += (dx / d) * force; c.push.y += (dy / d) * force;
-          }
-          if (d < c.half) hovering = true;
-        }
-
-        if (c.rain > 0) {                                    // a clicked cloud rains for a moment
-          c.rain -= sec;
-          const count = Math.random() < 50 * sec ? 1 + Math.floor(Math.random() * 2) : 0;
-          for (let i = 0; i < count; i++) drops.push({ x: c.x + rand(-c.half * 0.7, c.half * 0.7), y: c.y + 12, speed: rand(260, 360) });
-        }
-        c.wobble = Math.max(0, c.wobble - sec * 1.2);
-        if (day < 0.01) continue;
-
-        const squash = 1 + 0.08 * Math.sin(c.wobble * 22) * c.wobble;
-        cg.fillStyle = '#c4d6ec';                            // soft shadow under each puff
-        c.puffs.forEach(p => { cg.beginPath(); cg.arc(c.x + p.dx * squash, c.y + p.dy / squash + p.r * 0.28, p.r * squash, 0, Math.PI * 2); cg.fill(); });
-        cg.fillStyle = '#fff';
-        c.puffs.forEach(p => { cg.beginPath(); cg.arc(c.x + p.dx * squash, c.y + p.dy / squash, p.r * squash, 0, Math.PI * 2); cg.fill(); });
-      }
-      if (day > 0.01) {
-        g.globalAlpha = 0.95 * day;
-        g.drawImage(cloudLayer, 0, 0, w, h);
-        g.globalAlpha = 1;
-      }
-      box.style.cursor = hovering ? 'pointer' : '';
-    };
-
-    const drawRain = sec => {
-      g.strokeStyle = `rgba(70,120,190,${0.6 * day})`;
+      /* grid: a circle every 10 degrees from the pole, a spoke every 2 hours of right ascension */
+      g.lineWidth = 1; g.strokeStyle = white(0.07);
       g.beginPath();
-      drops = drops.filter(d => {
-        d.y += d.speed * sec;
-        g.moveTo(d.x, d.y); g.lineTo(d.x - 1, d.y + 7);
-        return d.y < h;
-      });
+      for (let d = 10; d <= 90; d += 10) { g.moveTo(cx + d * k, cy); g.arc(cx, cy, d * k, 0, Math.PI * 2); }
+      for (let ra = 0; ra < 24; ra += 2) {
+        const H = turn - ra * 15 * RAD;
+        g.moveTo(cx - 10 * k * Math.sin(H), cy - 10 * k * Math.cos(H));
+        g.lineTo(cx - 90 * k * Math.sin(H), cy - 90 * k * Math.cos(H));
+      }
       g.stroke();
-    };
+      for (const ra of [0, 6, 12, 18]) {
+        const H = turn - (ra + 0.22) * 15 * RAD, r = 46 * k;
+        const x = cx - r * Math.sin(H), y = cy - r * Math.cos(H);
+        if (inside(x, y, -10)) text(String(ra).padStart(2, '0') + 'h', x, y, white(0.5), 'center', 9);
+      }
 
-    const drawBirds = sec => {
-      g.strokeStyle = `rgba(20,40,70,${0.55 * day})`;
-      g.lineWidth = 1.5;
-      birds = birds.filter(b => {
-        b.x += b.speed * sec;
-        b.flap += sec * 9;
-        const wing = Math.sin(b.flap) * b.size * 0.7;
-        g.beginPath();
-        g.moveTo(b.x - b.size, b.y - wing); g.quadraticCurveTo(b.x - b.size * 0.4, b.y - wing * 0.2, b.x, b.y);
-        g.quadraticCurveTo(b.x + b.size * 0.4, b.y - wing * 0.2, b.x + b.size, b.y - wing);
-        g.stroke();
-        return b.x < w + 30;
-      });
-      g.lineWidth = 1;
-    };
+      /* the horizon: every direction of the compass, at zero height */
+      g.beginPath();
+      let north = null;
+      for (let az = 0; az <= 360; az += 3) {
+        const dec = Math.asin(Math.cos(lat * RAD) * Math.cos(az * RAD));
+        const H = (az < 180 ? -1 : 1) * Math.acos(Math.max(-1, Math.min(1, -Math.tan(lat * RAD) * Math.tan(dec))));
+        const r = (90 - dec / RAD) * k, x = cx - r * Math.sin(H), y = cy - r * Math.cos(H);
+        if (az === 0) { north = [x, y]; g.moveTo(x, y); } else g.lineTo(x, y);
+      }
+      g.setLineDash([2, 5]); g.strokeStyle = white(0.3); g.stroke(); g.setLineDash([]);
+      if (north && inside(...north, -8)) text('N · HORIZON', north[0], north[1] + 14, white(0.5), 'center', 9);
 
-    const draw = dt => {                                     // dt in milliseconds
-      time += dt;
-      const sec = dt / 1000;
+      /* background stars */
+      for (const s of FIELD) {
+        const [x, y] = place(s.ra, s.dec, 0.25);
+        if (!inside(x, y, 2)) continue;
+        const twinkle = reduceMotion ? 1 : 0.8 + 0.2 * Math.sin(time * s.pace + s.phase);
+        g.fillStyle = white((above(s.ra, s.dec) ? 0.62 : 0.14) * twinkle * (1 - (s.mag - 4.2) / 4));
+        g.beginPath(); g.arc(x, y, starSize(s.mag), 0, Math.PI * 2); g.fill();
+      }
 
-      // Day and night blend into each other instead of switching at once
-      day = reduceMotion ? dayGoal : day + (dayGoal - day) * Math.min(1, sec * SUNSET);
-      if (Math.abs(day - dayGoal) < 0.002) day = dayGoal;
+      /* constellations */
+      const at = {};
+      for (const id in STARS) at[id] = place(STARS[id][0], STARS[id][1], Math.max(0.35, 1 - STARS[id][2] / 5));
+      g.lineWidth = 0.8; g.lineJoin = 'round'; g.strokeStyle = white(0.34);
+      g.beginPath();
+      for (const fig of FIGURES) for (const line of fig.lines) line.forEach((id, i) => (i ? g.lineTo(...at[id]) : g.moveTo(...at[id])));
+      g.stroke();
+      for (const fig of FIGURES) {            // the name sits just outside the figure, on the side away from the pole
+        const ids = [...new Set(fig.lines.flat())];
+        const mx = ids.reduce((s, id) => s + at[id][0], 0) / ids.length - cx, my = ids.reduce((s, id) => s + at[id][1], 0) / ids.length - cy;
+        const far = Math.max(...ids.map(id => Math.hypot(at[id][0] - cx, at[id][1] - cy))) + 18, len = Math.hypot(mx, my) || 1;
+        const x = cx + (mx / len) * far, y = cy + (my / len) * far;
+        if (inside(x, y, -24)) text(fig.name.toUpperCase(), x, y + 3, white(0.55), 'center');
+      }
 
-      // The star current: a direction that slowly swings back and forth
-      const heading = -0.45 + 0.6 * Math.sin(time * 0.00003);
-      const flowX = Math.cos(heading) * FLOW, flowY = Math.sin(heading) * FLOW;
+      /* the stars themselves */
+      for (const id in STARS) {
+        const [ra, dec, mag] = STARS[id], [x, y] = at[id];
+        if (!inside(x, y, 3)) continue;
+        g.fillStyle = white(above(ra, dec) ? 0.95 : 0.3);
+        g.beginPath(); g.arc(x, y, starSize(mag), 0, Math.PI * 2); g.fill();
+      }
+      for (const id of NAMED) {
+        const [x, y] = at[id];
+        if (inside(x, y, -20)) text(STARS[id][3].toUpperCase(), x + 11, y + 3, white(id === 'polaris' ? 0.95 : 0.55));
+      }
+      g.strokeStyle = ACCENT; g.globalAlpha = a; g.lineWidth = 1.2;      // Polaris, the one fixed point
+      g.beginPath(); g.arc(at.polaris[0], at.polaris[1], 7, 0, Math.PI * 2); g.stroke();
+      g.globalAlpha = 1;
 
-      // Ease the parallax toward the cursor (or back to the middle when it leaves)
-      const ease = Math.min(1, sec * 2.5);
-      tilt.x += ((pointer.on ? (0.5 - pointer.x / w) * TILT : 0) - tilt.x) * ease;
-      tilt.y += ((pointer.on ? (0.5 - pointer.y / h) * TILT : 0) - tilt.y) * ease;
-
-      drawBackground();
-      drawSunAndMoon();
-      drawStars(sec, flowX, flowY);
-      drawShootingStar(sec);
-      drawClouds(sec);
-      drawRain(sec);
-      drawBirds(sec);
-
-      nextShot -= dt;
-      if (!shot && nextShot <= 0 && dt > 0 && day < 0.3) launchShootingStar();
-      nextBirds -= dt;
-      if (nextBirds <= 0 && dt > 0) { if (day > 0.7) launchBirds(); nextBirds = rand(...BIRDS_EVERY); }
-    };
-
-    /* ---------- running and listening ---------- */
-    const loop = now => {
-      const dt = Math.min(60, now - last || 16);
-      last = now;
-      draw(dt);
-      raf = visible && !document.hidden ? requestAnimationFrame(loop) : 0;
-    };
-    const start = () => { if (!raf && !reduceMotion) { last = 0; raf = requestAnimationFrame(loop); } };
-
-    const where = e => {
-      const rect = canvas.getBoundingClientRect();
-      return { x: e.clientX - rect.left, y: e.clientY - rect.top };
-    };
-    const move = e => { Object.assign(pointer, where(e), { on: true }); };
-    const leave = () => { pointer.on = false; box.style.cursor = ''; };
-    const click = e => {
-      const p = where(e);
-      if (day > 0.5) {
-        const hit = clouds.find(c => Math.hypot(c.x - p.x, c.y - p.y) < c.half);
-        if (hit) { hit.wobble = 1; hit.rain = 1.6; }
+      /* readout: the star nearest the cursor, or the next stop of the tour */
+      let pick = null;
+      if (pointer.on) {
+        let best = REACH;
+        for (const id in STARS) {
+          const d = Math.hypot(at[id][0] - pointer.x, at[id][1] - pointer.y);
+          if (d < best && id !== 'polaris') { best = d; pick = id; }
+        }
       } else {
-        launchShootingStar(p.x, p.y);
+        if (time - tourAt > TOUR_EVERY || !inside(...at[tourStar], -30)) {
+          const open = TOUR.filter(id => inside(...at[id], -40) && at[id][1] < h * 0.66 && at[id][1] > 132);
+          if (open.length) tourStar = open[(open.indexOf(tourStar) + 1) % open.length];
+          tourAt = time;
+        }
+        if (inside(...at[tourStar], -30) && at[tourStar][1] < h * 0.7) pick = tourStar;
+      }
+      if (pick) {
+        const [ra, dec, , name, des] = STARS[pick], [x, y] = at[pick], s = 8, c = 3;
+        const fade = pointer.on || reduceMotion ? 1 : Math.min(1, (time - tourAt) * 2, (TOUR_EVERY - (time - tourAt)) * 2);
+        g.strokeStyle = white(0.9 * Math.max(0, fade)); g.lineWidth = 1;
+        g.beginPath();
+        for (const [sx, sy] of [[-1, -1], [1, -1], [1, 1], [-1, 1]]) {
+          g.moveTo(x + sx * s, y + sy * (s - c)); g.lineTo(x + sx * s, y + sy * s); g.lineTo(x + sx * (s - c), y + sy * s);
+        }
+        g.stroke();
+        const left = x > w * 0.55, tx = x + (left ? -16 : 16), align = left ? 'right' : 'left';
+        const alt = altAz(ra, dec, lst, lat).alt;
+        const lines = [`${des}${name ? ' · ' + name.toUpperCase() : ''}`, `RA ${raText(ra)} · DEC ${decText(dec)}`, alt > 0 ? `ALT ${alt.toFixed(1)}° ABOVE HORIZON` : 'BELOW THE HORIZON'];
+        g.font = mono(9);
+        try { g.letterSpacing = '1px'; } catch (e) {}
+        const wide = Math.max(...lines.map(l => g.measureText(l).width)) + 12;
+        g.fillStyle = `rgba(10,10,12,${(0.86 * a * Math.max(0, fade)).toFixed(3)})`;      // a dark plate, so the text stays readable over the lines
+        g.fillRect(left ? tx - wide + 6 : tx - 6, y - 15, wide, 43);
+        text(lines[0], tx, y - 4, white(0.95 * Math.max(0, fade)), align);
+        text(lines[1], tx, y + 9, white(0.6 * Math.max(0, fade)), align, 9);
+        text(lines[2], tx, y + 21, white(0.6 * Math.max(0, fade)), align, 9);
+      }
+
+      /* shooting star */
+      if (!reduceMotion) {
+        nextShot -= dt;
+        if (nextShot <= 0 && !shot) { shot = { x: rand(w * 0.1, w * 0.9), y: rand(h * 0.08, h * 0.4), vx: rand(-420, -260), vy: rand(120, 220), life: 1 }; nextShot = rand(...SHOT_EVERY); }
+        if (shot) {
+          shot.x += shot.vx * dt; shot.y += shot.vy * dt; shot.life -= dt * 1.5;
+          const tail = g.createLinearGradient(shot.x, shot.y, shot.x - shot.vx * 0.22, shot.y - shot.vy * 0.22);
+          tail.addColorStop(0, white(0.9 * Math.max(0, shot.life))); tail.addColorStop(1, white(0));
+          g.strokeStyle = tail; g.lineWidth = 1.2;
+          g.beginPath(); g.moveTo(shot.x, shot.y); g.lineTo(shot.x - shot.vx * 0.22, shot.y - shot.vy * 0.22); g.stroke();
+          if (shot.life <= 0) shot = null;
+        }
       }
     };
-    const resize = new ResizeObserver(build);
-    const watch = new IntersectionObserver(([entry]) => { visible = entry.isIntersecting; if (visible) start(); });
-    const theme = new MutationObserver(() => { dayGoal = isDay() ? 1 : 0; if (reduceMotion) draw(0); });
-    const onVisibility = () => !document.hidden && start();
 
-    build(); start();
-    resize.observe(box); watch.observe(canvas);
-    theme.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
-    box.addEventListener('pointermove', move); box.addEventListener('pointerleave', leave);
-    box.addEventListener('pointerdown', click);
-    document.addEventListener('visibilitychange', onVisibility);
+    /* ---------- day: the sun chart ---------- */
+    const drawDay = (a, now, dt) => {
+      const ink = o => `rgba(10,10,12,${(o * a).toFixed(3)})`;
+      const sky = g.createLinearGradient(0, 0, 0, h);
+      sky.addColorStop(0, '#D9E2EE'); sky.addColorStop(0.62, '#EEF1F5'); sky.addColorStop(1, '#F8F9FA');
+      g.globalAlpha = a; g.fillStyle = sky; g.fillRect(0, 0, w, h);
+
+      g.strokeStyle = '#FFFFFF'; g.lineCap = 'round';
+      for (const c of clouds) {
+        if (!reduceMotion) { c.x += c.speed * dt; if (c.x > w + 60) Object.assign(c, makeCloud(-260)); }
+        g.lineWidth = c.thick; g.globalAlpha = a * 0.8;
+        g.beginPath();
+        c.rows.forEach((r, i) => { const y = c.y * h + i * (c.thick + 2); g.moveTo(c.x + r.dx, y); g.lineTo(c.x + r.dx + r.len, y); });
+        g.stroke();
+      }
+      g.lineCap = 'butt'; g.globalAlpha = 1;
+
+      const key = now.toDateString();
+      if (key !== pathKey) { path = sunDay(now, lat, lon); pathKey = key; }
+      const hy = h * 0.62, x0 = w * 0.07, x1 = w * 0.93, ky = (h * 0.46) / TOP_ALT;
+      const X = az => x0 + ((az - AZ[0]) / (AZ[1] - AZ[0])) * (x1 - x0), Y = alt => hy - alt * ky;
+
+      g.lineWidth = 1; g.strokeStyle = ink(0.06);                        // height lines
+      g.beginPath();
+      for (let alt = 10; alt <= Math.min(60, path.top + 12); alt += 10) { g.moveTo(x0, Y(alt)); g.lineTo(x1, Y(alt)); text(alt + '°', x0, Y(alt) - 5, ink(0.68), 'left', 9); }
+      g.stroke();
+
+      g.strokeStyle = ink(0.5);                                          // horizon and compass
+      g.beginPath(); g.moveTo(w * 0.04, hy); g.lineTo(w * 0.96, hy);
+      for (const [az, label] of [[90, 'E'], [180, 'S'], [270, 'W']]) { g.moveTo(X(az), hy); g.lineTo(X(az), hy + 7); text(label, X(az), hy + 21, ink(0.68), 'center'); }
+      g.stroke();
+
+      g.strokeStyle = ink(0.4); g.setLineDash([1, 5]); g.lineCap = 'round';   // today's path
+      g.beginPath();
+      let pen = false;
+      for (const p of path.points) {
+        if (p.alt < -0.9) { pen = false; continue; }
+        if (pen) g.lineTo(X(p.az), Y(p.alt)); else g.moveTo(X(p.az), Y(p.alt));
+        pen = true;
+      }
+      g.stroke(); g.setLineDash([]); g.lineCap = 'butt';
+      g.fillStyle = ink(0.5);
+      for (const p of path.points) if (p.m % 60 === 0 && p.alt > 1) { g.beginPath(); g.arc(X(p.az), Y(p.alt), 1.6, 0, Math.PI * 2); g.fill(); }
+      for (const edge of [path.rise, path.set]) {
+        if (!edge) continue;
+        g.fillStyle = `rgba(248,249,250,${a})`; g.strokeStyle = ink(0.9);
+        g.beginPath(); g.arc(X(edge.az), hy, 3, 0, Math.PI * 2); g.fill(); g.stroke();
+        text(clock(edge.m), X(edge.az), hy + 36, ink(0.68), 'center');
+      }
+
+      const sun = sunNow(now, lat, lon), up = sun.alt > -0.833;          // the sun, where it is right now
+      if (path.top > 4) {                                                // label the highest point, unless the sun is sitting on it
+        const p = path.points[path.noon / 5];
+        if (Math.hypot(X(p.az) - X(sun.az), Y(p.alt) - Y(sun.alt)) > 90) text('NOON ' + clock(path.noon), X(p.az), Y(p.alt) - 12, ink(0.68), 'center');
+      }
+      const sx = X(sun.az), sy = Y(Math.max(sun.alt, -7));
+      if (up) {
+        g.strokeStyle = ink(0.2); g.setLineDash([2, 4]);
+        g.beginPath(); g.moveTo(sx, sy + 22); g.lineTo(sx, hy); g.stroke(); g.setLineDash([]);
+        const beat = reduceMotion ? 0 : Math.sin(time * 0.8) * 2;
+        g.strokeStyle = ink(0.09); g.beginPath(); g.arc(sx, sy, 44 + beat, 0, Math.PI * 2); g.stroke();
+        g.strokeStyle = ink(0.05); g.beginPath(); g.arc(sx, sy, 72 + beat * 1.5, 0, Math.PI * 2); g.stroke();
+      }
+      g.fillStyle = `rgba(255,255,255,${up ? a : a * 0.5})`; g.strokeStyle = ink(up ? 1 : 0.4);
+      if (!up) g.setLineDash([2, 3]);
+      g.beginPath(); g.arc(sx, sy, 20, 0, Math.PI * 2); g.fill(); g.stroke(); g.setLineDash([]);
+      const left = sx > w * 0.56, tx = sx + (left ? -32 : 32), align = left ? 'right' : 'left';
+      text(up ? 'SUN' : 'SUN BELOW HORIZON', tx, sy - 3, ink(1), align);
+      text(up ? `ALT ${sun.alt.toFixed(1)}° · AZ ${sun.az.toFixed(1)}°` : path.rise ? `RISES ${clock(path.rise.m)}` : '', tx, sy + 10, ink(0.68), align, 9);
+
+      if (grain) { g.globalAlpha = a; g.fillStyle = grain; g.fillRect(0, 0, w, h); g.globalAlpha = 1; }
+    };
+
+    /* ---------- one frame ---------- */
+    const draw = dt => {
+      const now = new Date();
+      day += (dayGoal - day) * (reduceMotion ? 1 : Math.min(1, dt * SUNSET));
+      if (Math.abs(dayGoal - day) < 0.002) day = dayGoal;
+      const tx = pointer.on ? (pointer.x / w - 0.5) * -2 * TILT : 0, ty = pointer.on ? (pointer.y / h - 0.5) * -2 * TILT : 0;
+      tilt.x += (tx - tilt.x) * Math.min(1, dt * 4); tilt.y += (ty - tilt.y) * Math.min(1, dt * 4);
+      g.fillStyle = NIGHT_BG; g.fillRect(0, 0, w, h);
+      if (day < 0.999) drawNight(1 - day, now, dt);
+      if (day > 0.001) drawDay(day, now, dt);
+    };
+
+    const frame = t => {
+      raf = requestAnimationFrame(frame);
+      if (!visible || document.hidden) { last = t; return; }
+      const dt = Math.min((t - last) / 1000 || 0, 0.05);
+      last = t; time += dt;
+      draw(dt);
+    };
+
+    /* ---------- events ---------- */
+    const onMove = e => { const r = canvas.getBoundingClientRect(); pointer.x = e.clientX - r.left; pointer.y = e.clientY - r.top; pointer.on = e.pointerType !== 'touch'; if (reduceMotion) draw(1); };
+    const onLeave = () => { pointer.on = false; tourAt = time; if (reduceMotion) draw(1); };
+    const onDown = e => {
+      if (reduceMotion || day > 0.5 || shot) return;
+      const r = canvas.getBoundingClientRect();
+      shot = { x: e.clientX - r.left + 140, y: e.clientY - r.top - 70, vx: -380, vy: 190, life: 1 };
+    };
+    const themeWatch = new MutationObserver(() => { dayGoal = isDay() ? 1 : 0; if (reduceMotion) draw(1); });
+    const sizeWatch = new ResizeObserver(resize);
+    const seen = new IntersectionObserver(entries => { visible = entries[0].isIntersecting; });
+
+    resize();
+    sizeWatch.observe(box); seen.observe(box);
+    themeWatch.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+    box.addEventListener('pointermove', onMove);
+    box.addEventListener('pointerleave', onLeave);
+    box.addEventListener('pointerdown', onDown);
+    if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => reduceMotion && draw(0));
+    if (reduceMotion) { draw(0); slow = setInterval(() => draw(0), 60000); }   // still follows the clock, once a minute
+    else raf = requestAnimationFrame(frame);
+
     return () => {
-      cancelAnimationFrame(raf); resize.disconnect(); watch.disconnect(); theme.disconnect();
-      box.removeEventListener('pointermove', move); box.removeEventListener('pointerleave', leave);
-      box.removeEventListener('pointerdown', click);
-      document.removeEventListener('visibilitychange', onVisibility);
+      cancelAnimationFrame(raf); clearInterval(slow);
+      sizeWatch.disconnect(); seen.disconnect(); themeWatch.disconnect();
+      box.removeEventListener('pointermove', onMove);
+      box.removeEventListener('pointerleave', onLeave);
+      box.removeEventListener('pointerdown', onDown);
     };
   }, []);
 
-  return html`<canvas class="net" ref=${ref} aria-hidden="true"></canvas>`;
+  return html`<canvas class="net" ref=${ref} role="img" aria-label=${'The sky above ' + site.place.name + ': a star chart at night, the path of the sun by day'}></canvas>`;
 }

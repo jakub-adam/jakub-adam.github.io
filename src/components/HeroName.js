@@ -1,7 +1,7 @@
 import { html, useEffect, useRef } from '../lib/html.js';
 import { reduceMotion } from '../lib/motion.js';
 
-/* The big name on the home page.
+/* The big name at the bottom of the sky panel (an h1 on the home page, a plain line elsewhere).
    Letters rise in on load. Near the cursor they lift gently, and every frame eases
    toward its target, so the movement is smooth and never jumps.
    Tweak LIFT (how high) and REACH (how far from the cursor it works). */
@@ -9,7 +9,7 @@ const LIFT = 0.14;   // fraction of the font size
 const REACH = 1.6;   // in font sizes
 const EASE = 0.14;   // 0.05 = slow and floaty, 0.3 = snappy
 
-export function HeroName({ lines }) {
+export function HeroName({ lines, heading = true }) {
   const root = useRef(null);
 
   useEffect(() => {
@@ -44,10 +44,10 @@ export function HeroName({ lines }) {
 
   let n = 0; // running letter number, used to stagger the entrance
   return html`
-    <h1 class="name" ref=${root} aria-label=${lines.join(' ')}>
+    <p class="name" ref=${root} role=${heading ? 'heading' : undefined} aria-level=${heading ? 1 : undefined} aria-label=${lines.join(' ')}>
       ${lines.map(word => html`
         <span class="row" key=${word} aria-hidden="true">
           ${[...word].map(ch => html`<span class="ch" key=${n} style=${{ animationDelay: (n++ * 70) + 'ms' }}>${ch}</span>`)}
         </span>`)}
-    </h1>`;
+    </p>`;
 }

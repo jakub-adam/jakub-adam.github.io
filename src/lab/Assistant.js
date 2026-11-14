@@ -27,6 +27,8 @@ function BotMessage({ m, onTick, onDone }) {
     <div class="msg bot">
       <div class="bub">
         <p class="bt">${parts.slice(0, shown).join('')}</p>
+        ${done && m.code && html`<pre class="code"><code>${m.code}</code></pre>`}
+        ${done && m.after && html`<p class="bt">${m.after}</p>`}
         ${done && m.sample && html`<p class="snote"><${SampleTag} /> This is placeholder content from the site, not real details about Jakub yet.</p>`}
         ${done && m.actions.length > 0 && html`<div class="chips">${m.actions.map(a => html`
           <a key=${a.label} class="chip-link" href=${a.hash || a.href} ...${a.href && a.href.startsWith('http') ? { target: '_blank', rel: 'noopener' } : {}}>${a.label}</a>`)}</div>`}

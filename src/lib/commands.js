@@ -30,7 +30,7 @@ export const COMMANDS = {
   ask: args => {
     const r = answer(args.join(' '));
     if (!r) return 'Usage: ask <question>, for example: ask what is his expertise';
-    return (r.sample ? ['[sample data, not real yet]'] : []).concat(r.text);
+    return (r.sample ? ['[sample data, not real yet]'] : []).concat(r.text, r.code ? ['', r.code, '', r.after] : []);
   },
   skills: () => lookup('skills.txt'),
   projects: () => projects.map(p => `${p.slug.padEnd(16)} ${p.category.padEnd(8)} ${p.title}`),
