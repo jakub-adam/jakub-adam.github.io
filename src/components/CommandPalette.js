@@ -1,33 +1,24 @@
 import { html, useState, useEffect, useRef, useMemo } from '../lib/html.js';
 import { fuzzy } from '../lib/fuzzy.js';
 import { buildItems } from '../lib/palette.js';
+import { Icon } from './Icon.js';
 
 /* Underlines the letters that matched what you typed */
 const Highlight = ({ text, hits }) => html`<span>${[...text].map((c, i) => (hits && hits.includes(i) ? html`<mark key=${i}>${c}</mark>` : c))}</span>`;
 
-/* Ctrl K / Cmd K (or "/"): jump to any page, project, post or link from the keyboard */
+/* Ctrl K / Cmd K (or "/"): jump to any page, tool, project, post or link from the keyboard,
+   switch the theme, or copy the email and the phone number. A panel in the middle of the screen
+   on a computer, a sheet from the bottom on a phone (see global.css). */
 export function CommandPalette({ open, close }) {
   const [query, setQuery] = useState('');
   const [active, setActive] = useState(0);
   const input = useRef(null), list = useRef(null);
-  const all = useMemo(buildItems, []);
+  const all = useMemo(buildItems, [open]);                // rebuilt each time, so "Switch to ... theme" is right
 
   const q = query.trim();
   const results = q
     ? all.map(item => ({ item, m: fuzzy(q, item.label) })).filter(r => r.m).sort((a, b) => b.m.score - a.m.score).slice(0, 9)
     : all.map(item => ({ item, m: null }));
-
-  /* On a computer the palette rolls down from the Search button, so it is placed right under it.
-     On a phone the CSS turns it into a bottom sheet and ignores this position. */
-  const [anchor, setAnchor] = useState({});
-  useEffect(() => {
-    if (!open) return;
-    const button = document.querySelector('[data-search-anchor]');
-    if (button) {
-      const r = button.getBoundingClientRect();
-      setAnchor({ '--pal-top': r.bottom + 8 + 'px', '--pal-right': innerWidth - r.right + 'px' });
-    }
-  }, [open]);
 
   useEffect(() => {
     if (!open) return;
@@ -52,10 +43,14 @@ export function CommandPalette({ open, close }) {
 
   let group = '';
   return html`
-    <div class=${'pal-wrap' + (open ? ' open' : '')} style=${anchor} onMouseDown=${e => e.target === e.currentTarget && close()} aria-hidden=${!open}>
+    <div class=${'pal-wrap' + (open ? ' open' : '')} onMouseDown=${e => e.target === e.currentTarget && close()} aria-hidden=${!open}>
       <div class="pal" role="dialog" aria-label="Command palette">
-        <input ref=${input} class="pal-in" value=${query} placeholder="Search pages, projects, tools, links..." tabIndex=${open ? 0 : -1}
-          onChange=${e => { setQuery(e.target.value); setActive(0); }} onKeyDown=${onKey} spellcheck="false" autocomplete="off" />
+        <div class="pal-top">
+          <${Icon} name="search" />
+          <input ref=${input} class="pal-in" value=${query} placeholder="Type a command or search" aria-label="Search commands" tabIndex=${open ? 0 : -1}
+            onChange=${e => { setQuery(e.target.value); setActive(0); }} onKeyDown=${onKey} spellcheck="false" autocomplete="off" />
+          <kbd>Esc</kbd>
+        </div>
         <div class="pal-list" ref=${list} role="listbox">
           ${results.length === 0 && html`<p class="pal-empty">Nothing matches "${q}"</p>`}
           ${results.map(({ item, m }, i) => {
@@ -64,12 +59,12 @@ export function CommandPalette({ open, close }) {
               ${head && html`<p class="pal-group">${head}</p>`}
               <div class=${'pi' + (i === active ? ' on' : '')} role="option" aria-selected=${i === active}
                 onMouseMove=${() => active !== i && setActive(i)} onClick=${() => choose(i)}>
-                <${Highlight} text=${item.label} hits=${m && m.idx} /><small>${item.hint}</small>
+                <i class="dot"></i><${Highlight} text=${item.label} hits=${m && m.idx} /><small>${item.hint}</small><em class="ret">↵</em>
               </div>
             </div>`;
           })}
         </div>
-        <p class="pal-foot"><span>↑↓ move</span><span>↵ open</span><span>esc close</span></p>
+        <p class="pal-foot"><span><span>↑↓ move</span><span>↵ open</span><span>esc close</span></span><span>${results.length} ${results.length === 1 ? 'result' : 'results'}</span></p>
       </div>
     </div>`;
 }
